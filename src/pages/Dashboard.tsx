@@ -16,7 +16,7 @@ export default function Dashboard() {
     if (!profile) return
     supabase
       .from('reading_progress')
-      .select('*, books(title, author)')
+      .select('*, books(title, author, cover_url)')
       .eq('member_id', profile.id)
       .eq('status', 'reading')
       .limit(1)
@@ -50,13 +50,18 @@ export default function Dashboard() {
         <p className="text-sm uppercase tracking-wide opacity-60 mb-2">Currently reading</p>
         {progress ? (
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <h2 className="font-display text-xl">{progress.books?.title}</h2>
-              <p className="opacity-70 text-sm">{progress.books?.author}</p>
-              <div className="mt-2 w-48 h-1.5 bg-ink/10 dark:bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-gold" style={{ width: `${progress.percent_complete}%` }} />
+            <div className="flex items-center gap-3">
+              <div className="h-16 w-12 shrink-0 overflow-hidden rounded-sm bg-ink/5 dark:bg-white/5">
+                {progress.books?.cover_url || progress.books?.title?.toLowerCase() === 'white fang' ? <img src={progress.books?.cover_url || '/white-fang-cover.jpg'} alt={`${progress.books?.title} cover`} className="h-full w-full object-cover" /> : null}
               </div>
-              <p className="text-xs mt-1 opacity-60">{progress.percent_complete}% complete</p>
+              <div>
+                <h2 className="font-display text-xl">{progress.books?.title}</h2>
+                <p className="opacity-70 text-sm">{progress.books?.author}</p>
+                <div className="mt-2 w-48 h-1.5 bg-ink/10 dark:bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-gold" style={{ width: `${progress.percent_complete}%` }} />
+                </div>
+                <p className="text-xs mt-1 opacity-60">{progress.percent_complete}% complete</p>
+              </div>
             </div>
             <Link to="/reader" className="btn-primary">Continue Reading</Link>
           </div>
@@ -89,7 +94,7 @@ export default function Dashboard() {
 
       {currentBook && (!progress || progress.books?.title !== currentBook.title) && (
         <div className="mt-6 card flex flex-wrap items-center justify-between gap-4">
-          <div><p className="text-sm uppercase tracking-wide text-gold">Current Book of the Month</p><h2 className="font-display text-xl">{currentBook.title}</h2><p className="opacity-70 text-sm">{currentBook.author}</p></div>
+          <div className="flex items-center gap-3"><div className="h-16 w-12 shrink-0 overflow-hidden rounded-sm bg-ink/5 dark:bg-white/5">{currentBook.cover_url || currentBook.title?.toLowerCase() === 'white fang' ? <img src={currentBook.cover_url || '/white-fang-cover.jpg'} alt={`${currentBook.title} cover`} className="h-full w-full object-cover" /> : null}</div><div><p className="text-sm uppercase tracking-wide text-gold">Current Book of the Month</p><h2 className="font-display text-xl">{currentBook.title}</h2><p className="opacity-70 text-sm">{currentBook.author}</p></div></div>
           <Link to={`/library/${currentBook.id}`} className="btn-primary">View book</Link>
         </div>
       )}

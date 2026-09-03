@@ -17,6 +17,8 @@ export default function Library() {
     `${b.title} ${b.author}`.toLowerCase().includes(normalizedQuery)
   )
 
+  const coverFor = (book: any) => book.cover_url || (book.title?.toLowerCase() === 'white fang' ? '/white-fang-cover.jpg' : null)
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <h1 className="font-display text-3xl mb-2">Library</h1>
@@ -41,8 +43,8 @@ export default function Library() {
           {filtered.map((book) => (
             <Link key={book.id} to={`/library/${book.id}`} className="card hover:border-gold transition-colors">
               <div className="aspect-[3/4] overflow-hidden bg-ink/5 dark:bg-white/5 rounded-sm flex items-center justify-center mb-3">
-                {book.cover_url || book.title.toLowerCase() === 'white fang' ? (
-                  <img src={book.cover_url || '/white-fang-cover.jpg'} alt={`${book.title} cover`} className="h-full w-full object-cover" />
+                {coverFor(book) ? (
+                  <img src={coverFor(book)} alt={`${book.title} cover`} className="h-full w-full object-cover" />
                 ) : (
                   <BookOpen size={32} className="opacity-40" />
                 )}

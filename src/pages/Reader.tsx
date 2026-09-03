@@ -60,8 +60,8 @@ export default function Reader() {
         const savedPercent = Number(savedProgress.data?.percent_complete ?? 0)
         await rendition.display(savedPercent > 0 ? epubBook.locations.cfiFromPercentage(savedPercent / 100) : undefined)
         if (!cancelled) setEpubPercent(savedPercent)
-      } catch {
-        if (!cancelled) setEpubError('Could not open this EPUB book.')
+      } catch (error) {
+        if (!cancelled) setEpubError(error instanceof Error ? `Could not open this EPUB book: ${error.message}` : 'Could not open this EPUB book.')
       }
     }
 

@@ -38,8 +38,8 @@ export function PublicLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
-      <footer className="border-t border-ink/10 dark:border-ink-dark/10 mt-16">
-        <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-5 gap-6 text-sm">
+      <footer className="border-t border-ink/10 dark:border-ink-dark/10 mt-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-8 grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6 text-sm">
           <div className="col-span-2">
             <p className="font-display text-lg mb-2">The Literary Lounge</p>
             <p className="opacity-70">Read. Discuss. Connect.</p>

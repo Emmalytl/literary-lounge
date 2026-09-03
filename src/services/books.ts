@@ -11,9 +11,23 @@ export async function getPublishedBooks() {
 }
 
 export async function getBookById(id: string) {
-  const { data, error } = await supabase.from('books').select('*').eq('id', id).single()
+  const { data, error } = await supabase.from('books').select('*, book_categories(categories(name, slug))').eq('id', id).single()
   if (error) throw error
   return data
+}
+
+export async function recordBookOpen(bookId: string) {
+  const { error } = await supabase.rpc('record_book_open', { p_book_id: bookId })
+  if (error) throw error
+}
+
+export function isValidReadingUrl(url: string) {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
 }
 
 export async function getChapters(bookId: string) {

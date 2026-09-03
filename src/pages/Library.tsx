@@ -47,8 +47,11 @@ export default function Library() {
                   <BookOpen size={32} className="opacity-40" />
                 )}
               </div>
+              {book.is_current_book && <span className="inline-block text-xs uppercase tracking-wide text-gold font-semibold mb-1">Current book</span>}
               <h3 className="font-display text-lg">{book.title}</h3>
               <p className="opacity-70 text-sm">{book.author}</p>
+              {book.description && <p className="opacity-70 text-sm mt-2 line-clamp-2">{book.description}</p>}
+              <span className="btn-secondary mt-4 w-full text-sm">View book</span>
             </Link>
           ))}
         </div>

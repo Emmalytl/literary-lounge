@@ -35,4 +35,8 @@
     @apply text-xs uppercase tracking-[0.2em] font-semibold;
   }
 
+  .finance-input {
+    @apply w-full border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2;
+  }
+
 }

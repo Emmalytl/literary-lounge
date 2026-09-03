@@ -8,6 +8,7 @@ import { getUpcomingEvents } from '@/services/events'
 export default function Dashboard() {
   const { profile } = useAuth()
   const [progress, setProgress] = useState<any>(null)
+  const [currentBook, setCurrentBook] = useState<any>(null)
   const [nextEvent, setNextEvent] = useState<any>(null)
   const [stats, setStats] = useState({ completed: 0, badges: 0 })
 
@@ -21,6 +22,9 @@ export default function Dashboard() {
       .limit(1)
       .maybeSingle()
       .then(({ data }) => setProgress(data))
+
+    supabase.from('books').select('id, title, author, reading_url, cover_url').eq('is_current_book', true).eq('status', 'published').maybeSingle()
+      .then(({ data }) => setCurrentBook(data))
 
     getUpcomingEvents().then((events) => setNextEvent(events?.[0] ?? null)).catch(() => {})
 
@@ -80,6 +84,13 @@ export default function Dashboard() {
               Join WhatsApp Discussion
             </a>
           )}
+        </div>
+      )}
+
+      {currentBook && (!progress || progress.books?.title !== currentBook.title) && (
+        <div className="mt-6 card flex flex-wrap items-center justify-between gap-4">
+          <div><p className="text-sm uppercase tracking-wide text-gold">Current Book of the Month</p><h2 className="font-display text-xl">{currentBook.title}</h2><p className="opacity-70 text-sm">{currentBook.author}</p></div>
+          <Link to={`/library/${currentBook.id}`} className="btn-primary">View book</Link>
         </div>
       )}
     </div>

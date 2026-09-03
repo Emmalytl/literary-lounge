@@ -4,6 +4,7 @@ import { BookOpen, Award, Flame, CalendarDays } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { getUpcomingEvents } from '@/services/events'
+import { getBookCoverUrl } from '@/services/books'
 
 export default function Dashboard() {
   const { profile } = useAuth()
@@ -52,7 +53,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
               <div className="h-16 w-12 shrink-0 overflow-hidden rounded-sm bg-ink/5 dark:bg-white/5">
-                {progress.books?.cover_url || progress.books?.title?.toLowerCase() === 'white fang' ? <img src={progress.books?.cover_url || '/white-fang-cover.jpg'} alt={`${progress.books?.title} cover`} className="h-full w-full object-cover" /> : null}
+                {getBookCoverUrl(progress.books) ? <img src={getBookCoverUrl(progress.books) as string} alt={`${progress.books?.title} cover`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/white-fang-cover.jpg' }} /> : null}
               </div>
               <div>
                 <h2 className="font-display text-xl">{progress.books?.title}</h2>
@@ -94,7 +95,7 @@ export default function Dashboard() {
 
       {currentBook && (!progress || progress.books?.title !== currentBook.title) && (
         <div className="mt-6 card flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3"><div className="h-16 w-12 shrink-0 overflow-hidden rounded-sm bg-ink/5 dark:bg-white/5">{currentBook.cover_url || currentBook.title?.toLowerCase() === 'white fang' ? <img src={currentBook.cover_url || '/white-fang-cover.jpg'} alt={`${currentBook.title} cover`} className="h-full w-full object-cover" /> : null}</div><div><p className="text-sm uppercase tracking-wide text-gold">Current Book of the Month</p><h2 className="font-display text-xl">{currentBook.title}</h2><p className="opacity-70 text-sm">{currentBook.author}</p></div></div>
+          <div className="flex items-center gap-3"><div className="h-16 w-12 shrink-0 overflow-hidden rounded-sm bg-ink/5 dark:bg-white/5">{getBookCoverUrl(currentBook) ? <img src={getBookCoverUrl(currentBook) as string} alt={`${currentBook.title} cover`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/white-fang-cover.jpg' }} /> : null}</div><div><p className="text-sm uppercase tracking-wide text-gold">Current Book of the Month</p><h2 className="font-display text-xl">{currentBook.title}</h2><p className="opacity-70 text-sm">{currentBook.author}</p></div></div>
           <Link to={`/library/${currentBook.id}`} className="btn-primary">View book</Link>
         </div>
       )}

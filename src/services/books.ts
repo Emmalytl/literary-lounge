@@ -56,6 +56,12 @@ export function isValidReadingUrl(url: string) {
   }
 }
 
+export function getBookCoverUrl(book: { title?: string; cover_url?: string | null }) {
+  if (book.cover_url) return book.cover_url
+  if (book.title?.trim().toLowerCase() === 'white fang') return '/white-fang-cover.jpg'
+  return null
+}
+
 export async function getChapters(bookId: string) {
   const { data, error } = await supabase
     .from('book_chapters')

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, BookOpen } from 'lucide-react'
-import { getPublishedBooks } from '@/services/books'
+import { getBookCoverUrl, getPublishedBooks } from '@/services/books'
 
 export default function Library() {
   const [books, setBooks] = useState<any[]>([])
@@ -16,8 +16,6 @@ export default function Library() {
   const filtered = books.filter((b) =>
     `${b.title} ${b.author}`.toLowerCase().includes(normalizedQuery)
   )
-
-  const coverFor = (book: any) => book.cover_url || (book.title?.toLowerCase() === 'white fang' ? '/white-fang-cover.jpg' : null)
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
@@ -43,8 +41,8 @@ export default function Library() {
           {filtered.map((book) => (
             <Link key={book.id} to={`/library/${book.id}`} className="card hover:border-gold transition-colors">
               <div className="aspect-[3/4] overflow-hidden bg-ink/5 dark:bg-white/5 rounded-sm flex items-center justify-center mb-3">
-                {coverFor(book) ? (
-                  <img src={coverFor(book)} alt={`${book.title} cover`} className="h-full w-full object-cover" />
+                {getBookCoverUrl(book) ? (
+                  <img src={getBookCoverUrl(book) as string} alt={`${book.title} cover`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/white-fang-cover.jpg' }} />
                 ) : (
                   <BookOpen size={32} className="opacity-40" />
                 )}

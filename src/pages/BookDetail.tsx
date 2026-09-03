@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, BookOpen, ExternalLink } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useToast } from '@/components/Toast'
-import { getAudioFileUrl, getBookById, getBookFileUrl, isValidReadingUrl, recordBookOpen } from '@/services/books'
+import { getAudioFileUrl, getBookById, getBookCoverUrl, getBookFileUrl, isValidReadingUrl, recordBookOpen } from '@/services/books'
 import { supabase } from '@/lib/supabase'
 
 export default function BookDetail() {
@@ -83,7 +83,7 @@ export default function BookDetail() {
       <Link to="/library" className="inline-flex items-center gap-2 text-sm opacity-70 mb-8"><ArrowLeft size={16} /> Back to Library</Link>
       <div className="grid md:grid-cols-3 gap-8">
         <div className="aspect-[3/4] overflow-hidden bg-ink/5 dark:bg-white/5 rounded-sm flex items-center justify-center">
-          {book.cover_url || book.title?.toLowerCase() === 'white fang' ? <img src={book.cover_url || '/white-fang-cover.jpg'} alt={`${book.title} cover`} className="h-full w-full object-cover" /> : <BookOpen size={40} className="opacity-40" />}
+          {getBookCoverUrl(book) ? <img src={getBookCoverUrl(book) as string} alt={`${book.title} cover`} className="h-full w-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/white-fang-cover.jpg' }} /> : <BookOpen size={40} className="opacity-40" />}
         </div>
         <div className="md:col-span-2">
           {book.is_current_book && <p className="text-xs uppercase tracking-wide text-gold font-semibold mb-2">Current Book of the Month</p>}

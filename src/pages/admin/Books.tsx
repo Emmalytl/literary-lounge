@@ -1,4 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react'
+import { Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 
@@ -116,6 +117,27 @@ export default function AdminBooks() {
     load()
   }
 
+  async function deleteBook(book: any) {
+    if (!window.confirm(`Delete "${book.title}"? This will remove the book and its uploaded files.`)) return
+
+    const paths = [book.reading_file_path, book.audio_file_path].filter(Boolean)
+    if (paths.length) {
+      const { error } = await supabase.storage.from('book-content').remove(paths)
+      if (error) { push('Could not remove the uploaded book files.', 'error'); return }
+    }
+
+    if (book.cover_url?.includes('/storage/v1/object/public/book-covers/')) {
+      const coverPath = book.cover_url.split('/storage/v1/object/public/book-covers/')[1]
+      if (coverPath) await supabase.storage.from('book-covers').remove([decodeURIComponent(coverPath)])
+    }
+
+    const { error } = await supabase.from('books').delete().eq('id', book.id)
+    if (error) { push('Could not delete book.', 'error'); return }
+    if (editingId === book.id) resetForm()
+    push('Book deleted.', 'success')
+    load()
+  }
+
   return (
     <div>
       <h1 className="font-display text-3xl mb-6">Books</h1>
@@ -141,7 +163,7 @@ export default function AdminBooks() {
         <div className="flex flex-col gap-2 sm:flex-row"><button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto">{saving ? 'Saving...' : editingId ? 'Save changes' : 'Add to library'}</button>{editingId && <button type="button" onClick={resetForm} className="btn-secondary w-full sm:w-auto">Cancel</button>}</div>
       </form>
       <div className="flex flex-col gap-2">
-        {books.map((book) => <div key={book.id} className="card flex flex-wrap items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><div className="h-14 w-10 shrink-0 overflow-hidden rounded-sm bg-ink/5 dark:bg-white/5">{book.cover_url || book.title?.toLowerCase() === 'white fang' ? <img src={book.cover_url || '/white-fang-cover.jpg'} alt="" className="h-full w-full object-cover" /> : null}</div><div className="min-w-0"><p className="font-medium truncate">{book.title}</p><p className="text-xs opacity-60">{book.author} · {book.status}{book.reading_file_path ? ' · EPUB' : book.reading_url ? ' · Legacy URL' : ''}{book.is_current_book ? ' · Current book' : ''}</p></div></div><div className="flex flex-wrap gap-2"><button onClick={() => editBook(book)} className="btn-secondary !py-1.5 !px-3 text-sm">Edit</button><button onClick={() => togglePublish(book)} className="btn-secondary !py-1.5 !px-3 text-sm">{book.status === 'published' ? 'Unpublish' : 'Publish'}</button></div></div>)}
+        {books.map((book) => <div key={book.id} className="card flex flex-wrap items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><div className="h-14 w-10 shrink-0 overflow-hidden rounded-sm bg-ink/5 dark:bg-white/5">{book.cover_url || book.title?.toLowerCase() === 'white fang' ? <img src={book.cover_url || '/white-fang-cover.jpg'} alt="" className="h-full w-full object-cover" /> : null}</div><div className="min-w-0"><p className="font-medium truncate">{book.title}</p><p className="text-xs opacity-60">{book.author} · {book.status}{book.reading_file_path ? ' · EPUB' : book.reading_url ? ' · Legacy URL' : ''}{book.is_current_book ? ' · Current book' : ''}</p></div></div><div className="flex flex-wrap gap-2"><button onClick={() => editBook(book)} className="btn-secondary !py-1.5 !px-3 text-sm">Edit</button><button onClick={() => togglePublish(book)} className="btn-secondary !py-1.5 !px-3 text-sm">{book.status === 'published' ? 'Unpublish' : 'Publish'}</button><button onClick={() => deleteBook(book)} aria-label={`Delete ${book.title}`} title="Delete book" className="btn-secondary !py-1.5 !px-3 text-sm text-clay"><Trash2 size={16} /> <span className="sr-only">Delete</span></button></div></div>)}
       </div>
     </div>
   )

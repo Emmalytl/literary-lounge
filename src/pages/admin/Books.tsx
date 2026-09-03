@@ -15,7 +15,7 @@ export default function AdminBooks() {
   const [form, setForm] = useState<BookForm>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
-  const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [bookFile, setBookFile] = useState<File | null>(null)
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [existingReadingFilePath, setExistingReadingFilePath] = useState<string | null>(null)
@@ -39,7 +39,7 @@ export default function AdminBooks() {
       genre: book.genre ?? '', reading_source: book.reading_source ?? '', reading_url: book.reading_url ?? '', audio_url: book.audio_url ?? '',
       reading_type: book.reading_type ?? 'hosted', status: book.status ?? 'draft', is_current_book: Boolean(book.is_current_book)
     })
-    setPdfFile(null)
+    setBookFile(null)
     setCoverFile(null)
     setAudioFile(null)
     setExistingReadingFilePath(book.reading_file_path ?? null)
@@ -49,7 +49,7 @@ export default function AdminBooks() {
   function resetForm() {
     setForm(emptyForm)
     setEditingId(null)
-    setPdfFile(null)
+    setBookFile(null)
     setCoverFile(null)
     setAudioFile(null)
     setExistingReadingFilePath(null)
@@ -60,8 +60,8 @@ export default function AdminBooks() {
     if (saving) return
     if (coverFile && !['image/jpeg', 'image/png'].includes(coverFile.type)) { push('Cover must be a JPEG or PNG image.', 'error'); return }
     if (coverFile && coverFile.size > 10 * 1024 * 1024) { push('Cover images must be 10 MB or smaller.', 'error'); return }
-    if (pdfFile && (!['application/pdf', 'application/octet-stream', ''].includes(pdfFile.type) || !pdfFile.name.toLowerCase().endsWith('.pdf') || pdfFile.size > 50 * 1024 * 1024)) { push('PDF files must be 50 MB or smaller and use a .pdf extension.', 'error'); return }
-    if (!pdfFile && !existingReadingFilePath) { push('Upload a PDF before saving this book.', 'error'); return }
+    if (bookFile && (!['application/epub+zip', 'application/octet-stream', ''].includes(bookFile.type) || !bookFile.name.toLowerCase().endsWith('.epub') || bookFile.size > 50 * 1024 * 1024)) { push('Book files must be EPUB files, 50 MB or smaller, and use a .epub extension.', 'error'); return }
+    if (!bookFile && !existingReadingFilePath) { push('Upload an EPUB book before saving.', 'error'); return }
     if (audioFile && ((!['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/wave', 'audio/ogg', 'audio/webm', 'application/octet-stream', ''].includes(audioFile.type) || !['.mp3', '.m4a', '.wav', '.ogg', '.webm'].some((extension) => audioFile.name.toLowerCase().endsWith(extension))) || audioFile.size > 100 * 1024 * 1024)) { push('Audio must be MP3, M4A, WAV, OGG, or WebM and 100 MB or smaller.', 'error'); return }
     setSaving(true)
 
@@ -86,12 +86,12 @@ export default function AdminBooks() {
       const { error: coverPathError } = await supabase.from('books').update({ cover_url: publicCover.publicUrl }).eq('id', bookId)
       if (coverPathError) { push('Book saved, but the cover URL could not be saved.', 'error'); setSaving(false); return }
     }
-    if (pdfFile) {
-      const path = `books/${bookId}/book.pdf`
-      const upload = await supabase.storage.from('book-content').upload(path, pdfFile, { upsert: true, contentType: 'application/pdf' })
-      if (upload.error) { push(`Book saved, but the PDF upload failed: ${upload.error.message}`, 'error'); setSaving(false); return }
+    if (bookFile) {
+      const path = `books/${bookId}/book.epub`
+      const upload = await supabase.storage.from('book-content').upload(path, bookFile, { upsert: true, contentType: 'application/epub+zip' })
+      if (upload.error) { push(`Book saved, but the EPUB upload failed: ${upload.error.message}`, 'error'); setSaving(false); return }
       const { error: pathError } = await supabase.from('books').update({ reading_file_path: path, reading_type: 'hosted' }).eq('id', bookId)
-      if (pathError) { push('Book saved, but the PDF path could not be saved.', 'error'); setSaving(false); return }
+      if (pathError) { push('Book saved, but the EPUB path could not be saved.', 'error'); setSaving(false); return }
     }
     if (audioFile) {
       const path = `books/${bookId}/audio-${audioFile.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`
@@ -133,7 +133,7 @@ export default function AdminBooks() {
           <input placeholder="Reading source" value={form.reading_source} onChange={(e) => updateField('reading_source', e.target.value)} className="finance-input" />
         </div>
         <div className="rounded-sm border border-gold/40 bg-gold/5 p-3">
-          <label className="mt-3 block text-sm">Upload PDF book<input type="file" accept="application/pdf,.pdf" onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">PDF only, maximum 50 MB. Members will read the private uploaded file.</span></label>
+          <label className="mt-3 block text-sm">Upload EPUB book<input type="file" accept="application/epub+zip,.epub" onChange={(e) => setBookFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">EPUB only, maximum 50 MB. Members will read the private uploaded file.</span></label>
         </div>
         <label className="text-sm">Upload audio file (optional replacement)<input type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/ogg,audio/webm,.mp3,.m4a,.wav,.ogg,.webm" onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">MP3, M4A, WAV, OGG, or WebM. Maximum 100 MB. Audio stays private.</span></label>
         <select value={form.status} onChange={(e) => updateField('status', e.target.value)} className="finance-input"><option value="draft">Unpublished</option><option value="published">Published</option></select>
@@ -141,7 +141,7 @@ export default function AdminBooks() {
         <div className="flex flex-col gap-2 sm:flex-row"><button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto">{saving ? 'Saving...' : editingId ? 'Save changes' : 'Add to library'}</button>{editingId && <button type="button" onClick={resetForm} className="btn-secondary w-full sm:w-auto">Cancel</button>}</div>
       </form>
       <div className="flex flex-col gap-2">
-        {books.map((book) => <div key={book.id} className="card flex flex-wrap items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><div className="h-14 w-10 shrink-0 overflow-hidden rounded-sm bg-ink/5 dark:bg-white/5">{book.cover_url || book.title?.toLowerCase() === 'white fang' ? <img src={book.cover_url || '/white-fang-cover.jpg'} alt="" className="h-full w-full object-cover" /> : null}</div><div className="min-w-0"><p className="font-medium truncate">{book.title}</p><p className="text-xs opacity-60">{book.author} · {book.status}{book.reading_file_path ? ' · PDF' : book.reading_url ? ' · URL' : ''}{book.is_current_book ? ' · Current book' : ''}</p></div></div><div className="flex flex-wrap gap-2"><button onClick={() => editBook(book)} className="btn-secondary !py-1.5 !px-3 text-sm">Edit</button><button onClick={() => togglePublish(book)} className="btn-secondary !py-1.5 !px-3 text-sm">{book.status === 'published' ? 'Unpublish' : 'Publish'}</button></div></div>)}
+        {books.map((book) => <div key={book.id} className="card flex flex-wrap items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><div className="h-14 w-10 shrink-0 overflow-hidden rounded-sm bg-ink/5 dark:bg-white/5">{book.cover_url || book.title?.toLowerCase() === 'white fang' ? <img src={book.cover_url || '/white-fang-cover.jpg'} alt="" className="h-full w-full object-cover" /> : null}</div><div className="min-w-0"><p className="font-medium truncate">{book.title}</p><p className="text-xs opacity-60">{book.author} · {book.status}{book.reading_file_path ? ' · EPUB' : book.reading_url ? ' · Legacy URL' : ''}{book.is_current_book ? ' · Current book' : ''}</p></div></div><div className="flex flex-wrap gap-2"><button onClick={() => editBook(book)} className="btn-secondary !py-1.5 !px-3 text-sm">Edit</button><button onClick={() => togglePublish(book)} className="btn-secondary !py-1.5 !px-3 text-sm">{book.status === 'published' ? 'Unpublish' : 'Publish'}</button></div></div>)}
       </div>
     </div>
   )

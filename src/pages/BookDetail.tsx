@@ -91,7 +91,7 @@ export default function BookDetail() {
           <p className="opacity-70">by {book.author}</p>
           {book.genre && <p className="text-sm opacity-60 mt-2">Category: {book.genre}</p>}
           <p className="mt-4 opacity-80 max-w-prose">{book.description || 'No description available yet.'}</p>
-          <div className="mt-6 text-sm opacity-70 space-y-1"><p>Reading source: {book.reading_source || 'External source'}</p><p>Reading activity is tracked here; your external reading position is not.</p></div>
+          <div className="mt-6 text-sm opacity-70 space-y-1"><p>Reading source: {book.reading_source || 'Literary Lounge'}</p><p>Reading activity is tracked here; your EPUB reading position is not.</p></div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             {(book.reading_type === 'hosted' && book.reading_file_path) || (book.reading_url && isValidReadingUrl(book.reading_url)) ? (
               <button type="button" onClick={openBook} className="btn-primary w-full sm:w-auto"><ExternalLink size={16} /> Read Book</button>
@@ -106,7 +106,7 @@ export default function BookDetail() {
           <h2 className="font-display text-xl mb-3">Your Reading</h2>
           <p className="text-sm">Status: <span className="capitalize">{progress?.status ?? 'not started'}</span></p>
           <p className="text-sm mt-3">Progress recorded by the Lounge: {Number(progress?.percent_complete ?? 0)}%</p>
-          <p className="text-xs opacity-60 mt-2">External reading pages and PDF viewers do not report page percentage automatically.</p>
+          <p className="text-xs opacity-60 mt-2">The EPUB viewer does not report page percentage automatically.</p>
           {progress?.last_opened_at && <p className="text-sm opacity-70 mt-1">Last activity: {new Date(progress.last_opened_at).toLocaleDateString()}</p>}
         </section>
         <section className="card">

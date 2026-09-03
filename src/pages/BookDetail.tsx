@@ -92,10 +92,12 @@ export default function BookDetail() {
           {book.genre && <p className="text-sm opacity-60 mt-2">Category: {book.genre}</p>}
           <p className="mt-4 opacity-80 max-w-prose">{book.description || 'No description available yet.'}</p>
           <div className="mt-6 text-sm opacity-70 space-y-1"><p>Reading source: {book.reading_source || 'External source'}</p><p>Reading activity is tracked here; your external reading position is not.</p></div>
-          {(book.reading_type === 'hosted' && book.reading_file_path) || (book.reading_url && isValidReadingUrl(book.reading_url)) ? (
-            <button type="button" onClick={openBook} className="btn-primary mt-6"><ExternalLink size={16} /> Read Book</button>
-          ) : <p className="mt-6 text-sm opacity-70">Reading link not available yet.</p>}
-          {(book.audio_file_path || (book.audio_url && isValidReadingUrl(book.audio_url))) && <button type="button" onClick={openAudio} className="btn-secondary mt-3 ml-2"><ExternalLink size={16} /> Listen to Audio</button>}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            {(book.reading_type === 'hosted' && book.reading_file_path) || (book.reading_url && isValidReadingUrl(book.reading_url)) ? (
+              <button type="button" onClick={openBook} className="btn-primary w-full sm:w-auto"><ExternalLink size={16} /> Read Book</button>
+            ) : <p className="text-sm opacity-70">Reading link not available yet.</p>}
+            {(book.audio_file_path || (book.audio_url && isValidReadingUrl(book.audio_url))) && <button type="button" onClick={openAudio} className="btn-secondary w-full sm:w-auto"><ExternalLink size={16} /> Listen to Audio</button>}
+          </div>
         </div>
       </div>
 

@@ -58,7 +58,7 @@ export default function AdminBooks() {
     if (form.audio_url && !isValidReadingUrl(form.audio_url)) { push('Audio URL must use http:// or https://.', 'error'); return }
     if (coverFile && !['image/jpeg', 'image/png'].includes(coverFile.type)) { push('Cover must be a JPEG or PNG image.', 'error'); return }
     if (coverFile && coverFile.size > 10 * 1024 * 1024) { push('Cover images must be 10 MB or smaller.', 'error'); return }
-    if (pdfFile && (pdfFile.type !== 'application/pdf' || pdfFile.size > 50 * 1024 * 1024)) { push('PDF files must be 50 MB or smaller.', 'error'); return }
+    if (pdfFile && (!['application/pdf', 'application/octet-stream', ''].includes(pdfFile.type) || !pdfFile.name.toLowerCase().endsWith('.pdf') || pdfFile.size > 50 * 1024 * 1024)) { push('PDF files must be 50 MB or smaller and use a .pdf extension.', 'error'); return }
     if (audioFile && (!audioFile.type.startsWith('audio/') || audioFile.size > 100 * 1024 * 1024)) { push('Audio files must be 100 MB or smaller.', 'error'); return }
 
     const values = {
@@ -86,7 +86,7 @@ export default function AdminBooks() {
     if (pdfFile) {
       const path = `books/${bookId}/book.pdf`
       const upload = await supabase.storage.from('book-content').upload(path, pdfFile, { upsert: true, contentType: 'application/pdf' })
-      if (upload.error) { push('Book saved, but the PDF upload failed.', 'error'); return }
+      if (upload.error) { push(`Book saved, but the PDF upload failed: ${upload.error.message}`, 'error'); return }
       const { error: pathError } = await supabase.from('books').update({ reading_file_path: path, reading_type: 'hosted' }).eq('id', bookId)
       if (pathError) { push('Book saved, but the PDF path could not be saved.', 'error'); return }
     }

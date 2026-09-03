@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
-const INACTIVITY_TIMEOUT_MS = 30_000
+const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000
 
 export type Profile = {
   id: string

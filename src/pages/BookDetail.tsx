@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, BookOpen, ExternalLink } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useToast } from '@/components/Toast'
-import { getAudioFileUrl, getBookById, getBookCoverUrl, getBookFileUrl, isValidReadingUrl, recordBookOpen } from '@/services/books'
+import { getAudioFileUrl, getBookById, getBookCoverUrl, isValidReadingUrl, recordBookOpen } from '@/services/books'
 import { supabase } from '@/lib/supabase'
 
 export default function BookDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { push } = useToast()
   const [book, setBook] = useState<any>(null)
@@ -29,10 +30,7 @@ export default function BookDetail() {
 
   async function openBook() {
     if (book?.reading_type === 'hosted' && book.reading_file_path) {
-      try {
-        const { url } = await getBookFileUrl(book.id)
-        window.open(url, '_blank', 'noopener,noreferrer')
-      } catch { push('The uploaded book could not be opened.', 'error') }
+      navigate(`/reader/${book.id}`)
     } else if (book?.reading_url && isValidReadingUrl(book.reading_url)) {
       window.open(book.reading_url, '_blank', 'noopener,noreferrer')
     } else {
@@ -91,7 +89,7 @@ export default function BookDetail() {
           <p className="opacity-70">by {book.author}</p>
           {book.genre && <p className="text-sm opacity-60 mt-2">Category: {book.genre}</p>}
           <p className="mt-4 opacity-80 max-w-prose">{book.description || 'No description available yet.'}</p>
-          <div className="mt-6 text-sm opacity-70 space-y-1"><p>Reading source: {book.reading_source || 'Literary Lounge'}</p><p>Reading activity is tracked here; your EPUB reading position is not.</p></div>
+          <div className="mt-6 text-sm opacity-70 space-y-1"><p>Reading source: {book.reading_source || 'Literary Lounge'}</p><p>Your EPUB position and percentage are saved as you read.</p></div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             {(book.reading_type === 'hosted' && book.reading_file_path) || (book.reading_url && isValidReadingUrl(book.reading_url)) ? (
               <button type="button" onClick={openBook} className="btn-primary w-full sm:w-auto"><ExternalLink size={16} /> Read Book</button>
@@ -106,7 +104,7 @@ export default function BookDetail() {
           <h2 className="font-display text-xl mb-3">Your Reading</h2>
           <p className="text-sm">Status: <span className="capitalize">{progress?.status ?? 'not started'}</span></p>
           <p className="text-sm mt-3">Progress recorded by the Lounge: {Number(progress?.percent_complete ?? 0)}%</p>
-          <p className="text-xs opacity-60 mt-2">The EPUB viewer does not report page percentage automatically.</p>
+          <p className="text-xs opacity-60 mt-2">Your EPUB reading position is saved automatically.</p>
           {progress?.last_opened_at && <p className="text-sm opacity-70 mt-1">Last activity: {new Date(progress.last_opened_at).toLocaleDateString()}</p>}
         </section>
         <section className="card">

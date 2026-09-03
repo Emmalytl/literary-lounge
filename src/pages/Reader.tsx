@@ -20,6 +20,9 @@ export default function Reader() {
   const [epubPercent, setEpubPercent] = useState(0)
   const [epubError, setEpubError] = useState('')
   const epubContainer = useRef<HTMLDivElement>(null)
+  // Holds the live epub.js "rendition" so the Previous/Next buttons below
+  // can tell it to turn pages.
+  const renditionRef = useRef<any>(null)
 
   useEffect(() => {
     if (!bookId) return
@@ -42,23 +45,40 @@ export default function Reader() {
     async function loadEpub() {
       try {
         const { url } = await getBookFileUrl(book.id)
+
         const { default: ePub } = await import('epubjs')
         if (cancelled || !epubContainer.current) return
-        epubBook = ePub(url, { openAs: 'epub' })
-await epubBook.ready
 
-// Cache the slow location-scan per book, so it only runs once per
-// device instead of on every single open.
-const cacheKey = `epub-locations-${book.id}`
-const cached = localStorage.getItem(cacheKey)
-if (cached) {
-  epubBook.locations.load(cached)
-} else {
-  await epubBook.locations.generate(1000)
-  localStorage.setItem(cacheKey, epubBook.locations.save())
-}
+        // openAs: 'epub' stops epub.js from guessing the file type from the
+        // URL. Without it, the ?token=... on our signed URL confuses the
+        // guesser into thinking this is an unpacked folder of files, which
+        // makes it try (and fail) to fetch container.xml separately.
+        epubBook = ePub(url, { openAs: 'epub' })
+        await epubBook.ready
         if (cancelled || !epubContainer.current) return
+
+        // The location scan below is what makes "percent complete" accurate,
+        // but it reads through the whole book and is slow on a full novel.
+        // Cache the result per book+browser so it only runs once, not on
+        // every visit.
+        const cacheKey = `epub-locations-${book.id}`
+        const cachedLocations = localStorage.getItem(cacheKey)
+        if (cachedLocations) {
+          epubBook.locations.load(cachedLocations)
+        } else {
+          await epubBook.locations.generate(1000)
+          try {
+            localStorage.setItem(cacheKey, epubBook.locations.save())
+          } catch {
+            // Storage can be full or disabled (private browsing) -- reading
+            // still works fine without the cache, just slower next time.
+          }
+        }
+        if (cancelled || !epubContainer.current) return
+
         rendition = epubBook.renderTo(epubContainer.current, { width: '100%', height: '70vh' })
+        renditionRef.current = rendition
+
         rendition.on('relocated', (location: any) => {
           const cfi = location?.start?.cfi
           if (!cfi) return
@@ -66,18 +86,27 @@ if (cached) {
           setEpubPercent(percent)
           updateReadingProgress(profile.id, book.id, percent).catch(() => {})
         })
-        const savedProgress = await supabase.from('reading_progress').select('percent_complete').eq('book_id', book.id).eq('member_id', profile.id).maybeSingle()
+
+        const savedProgress = await supabase
+          .from('reading_progress')
+          .select('percent_complete')
+          .eq('book_id', book.id)
+          .eq('member_id', profile.id)
+          .maybeSingle()
         const savedPercent = Number(savedProgress.data?.percent_complete ?? 0)
-        await rendition.display(savedPercent > 0 ? epubBook.locations.cfiFromPercentage(savedPercent / 100) : undefined)
+        await rendition.display(
+          savedPercent > 0 ? epubBook.locations.cfiFromPercentage(savedPercent / 100) : undefined
+        )
         if (!cancelled) setEpubPercent(savedPercent)
-      } catch (error) {
-        if (!cancelled) setEpubError(error instanceof Error ? `Could not open this EPUB book: ${error.message}` : 'Could not open this EPUB book.')
+      } catch {
+        if (!cancelled) setEpubError('Could not open this EPUB book.')
       }
     }
 
     loadEpub()
     return () => {
       cancelled = true
+      renditionRef.current = null
       rendition?.destroy()
       epubBook?.destroy()
     }
@@ -108,19 +137,45 @@ if (cached) {
   if (loading) return <div className="p-10 text-center opacity-60">Loading…</div>
   if (!book) return <div className="p-10 text-center opacity-60">Book not found.</div>
 
-  if (book.reading_file_path) return (
-    <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
-      <div className="bg-paper dark:bg-paper-dark min-h-screen">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-          <div className="flex items-center justify-between gap-4 text-sm opacity-70 mb-6">
-            <div><p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p><p>{epubPercent}% complete</p></div>
-            <div className="flex shrink-0 items-center gap-3"><button onClick={() => setFontSize((f) => Math.max(14, f - 2))} aria-label="Smaller text"><Type size={14} /></button><button onClick={() => setFontSize((f) => Math.min(28, f + 2))} aria-label="Larger text"><Type size={20} /></button><button onClick={() => setReadingDark((d) => !d)} aria-label="Toggle reading mode">{readingDark ? <Sun size={18} /> : <Moon size={18} />}</button></div>
+  if (book.reading_file_path) {
+    return (
+      <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
+        <div className="bg-paper dark:bg-paper-dark min-h-screen">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+            <div className="flex items-center justify-between gap-4 text-sm opacity-70 mb-6">
+              <div>
+                <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
+                <p>{epubPercent}% complete</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <button onClick={() => setFontSize((f) => Math.max(14, f - 2))} aria-label="Smaller text"><Type size={14} /></button>
+                <button onClick={() => setFontSize((f) => Math.min(28, f + 2))} aria-label="Larger text"><Type size={20} /></button>
+                <button onClick={() => setReadingDark((d) => !d)} aria-label="Toggle reading mode">
+                  {readingDark ? <Sun size={18} /> : <Moon size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {epubError ? (
+              <p className="text-center text-clay">{epubError}</p>
+            ) : (
+              <>
+                <div ref={epubContainer} style={{ fontSize }} className="min-h-[70vh] overflow-hidden" />
+                <div className="flex items-center justify-between mt-6">
+                  <button onClick={() => renditionRef.current?.prev()} className="btn-secondary">
+                    <ChevronLeft size={16} /> Previous
+                  </button>
+                  <button onClick={() => renditionRef.current?.next()} className="btn-secondary">
+                    Next <ChevronRight size={16} />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-          {epubError ? <p className="text-center text-clay">{epubError}</p> : <div ref={epubContainer} style={{ fontSize }} className="min-h-[70vh] overflow-hidden" />}
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const chapter = chapters[chapterIndex]
   const percent = chapters.length ? Math.round(((chapterIndex + 1) / chapters.length) * 100) : 0

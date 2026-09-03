@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  h1, h2, h3, .font-display { font-family: 'Playfair Display', Georgia, serif; }
+  :focus-visible { outline: 2px solid #B78A3D; outline-offset: 2px; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-sm bg-ink text-paper dark:bg-gold dark:text-paper-dark px-5 py-3 font-medium hover:opacity-90 transition-opacity;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-sm border border-ink/30 dark:border-ink-dark/30 px-5 py-3 font-medium hover:bg-ink/5 dark:hover:bg-white/5 transition-colors;
+  }
+  .card {
+    @apply border border-ink/10 dark:border-ink-dark/10 rounded-sm bg-white/60 dark:bg-white/5 p-6;
+  }
+
+  .lounge-logo {
+    @apply h-28 w-28 rounded-full object-cover;
+    box-shadow: 0 12px 28px rgba(27, 42, 74, 0.16);
+  }
+
+  .header-logo {
+    @apply h-9 w-9 rounded-full object-cover;
+  }
+
+  .eyebrow {
+    @apply text-xs uppercase tracking-[0.2em] font-semibold;
+  }
+
+}

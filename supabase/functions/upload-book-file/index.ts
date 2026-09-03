@@ -3,16 +3,23 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const MAX_BOOK_SIZE = 50 * 1024 * 1024
 const MAX_AUDIO_SIZE = 100 * 1024 * 1024
 const AUDIO_TYPES = new Set(['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/wave', 'audio/ogg', 'audio/webm'])
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+}
 
 function response(body: Record<string, string>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' }
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
 }
 
 Deno.serve(async (req) => {
   try {
+    if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+    if (req.method !== 'POST') return response({ error: 'Method not allowed' }, 405)
     const authorization = req.headers.get('Authorization')
     if (!authorization) return response({ error: 'Missing auth token' }, 401)
 

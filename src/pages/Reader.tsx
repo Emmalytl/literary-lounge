@@ -44,7 +44,7 @@ export default function Reader() {
         const { url } = await getBookFileUrl(book.id)
         const { default: ePub } = await import('epubjs')
         if (cancelled || !epubContainer.current) return
-        epubBook = ePub(url)
+        epubBook = ePub(url, { openAs: 'epub' })
         await epubBook.ready
         await epubBook.locations.generate(1000)
         if (cancelled || !epubContainer.current) return

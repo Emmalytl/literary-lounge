@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
+const INACTIVITY_TIMEOUT_MS = 30_000
+
 export type Profile = {
   id: string
   full_name: string
@@ -55,6 +57,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => listener.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+
+    let lastActivity = Date.now()
+    let signedOut = false
+    let timer: ReturnType<typeof setTimeout>
+
+    const logoutForInactivity = () => {
+      if (signedOut || Date.now() - lastActivity < INACTIVITY_TIMEOUT_MS) return
+      signedOut = true
+      supabase.auth.signOut()
+    }
+
+    const resetTimer = () => {
+      lastActivity = Date.now()
+      clearTimeout(timer)
+      timer = setTimeout(logoutForInactivity, INACTIVITY_TIMEOUT_MS)
+    }
+
+    const checkVisibility = () => {
+      if (document.hidden) return
+      if (Date.now() - lastActivity >= INACTIVITY_TIMEOUT_MS) logoutForInactivity()
+      else resetTimer()
+    }
+
+    const activityEvents = ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const
+    activityEvents.forEach((event) => window.addEventListener(event, resetTimer, { passive: true }))
+    document.addEventListener('visibilitychange', checkVisibility)
+    resetTimer()
+
+    return () => {
+      clearTimeout(timer)
+      activityEvents.forEach((event) => window.removeEventListener(event, resetTimer))
+      document.removeEventListener('visibilitychange', checkVisibility)
+    }
+  }, [user])
 
   async function signUp(email: string, password: string, fullName: string) {
     const { error } = await supabase.auth.signUp({

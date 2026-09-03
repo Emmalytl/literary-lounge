@@ -90,16 +90,24 @@ export default function AdminBooks() {
       if (coverPathError) { push('Book saved, but the cover URL could not be saved.', 'error'); setSaving(false); return }
     }
     if (bookFile) {
-      const path = `books/${bookId}/book.epub`
-      const upload = await supabase.storage.from('book-content').upload(path, bookFile, { upsert: true, contentType: 'application/epub+zip' })
-      if (upload.error) { push(`EPUB upload failed. Apply migration 0011_book_content_insert_rls.sql in Supabase, then try again. Details: ${upload.error.message}`, 'error'); setSaving(false); return }
+      const uploadBody = new FormData()
+      uploadBody.append('bookId', bookId)
+      uploadBody.append('mediaType', 'book')
+      uploadBody.append('file', bookFile)
+      const { data: upload, error: uploadError } = await supabase.functions.invoke('upload-book-file', { body: uploadBody })
+      if (uploadError || !upload?.path) { push(`EPUB upload failed: ${uploadError?.message ?? upload?.error ?? 'The upload function is not deployed.'}`, 'error'); setSaving(false); return }
+      const path = upload.path
       const { error: pathError } = await supabase.from('books').update({ reading_file_path: path, reading_type: 'hosted' }).eq('id', bookId)
       if (pathError) { push('Book saved, but the EPUB path could not be saved.', 'error'); setSaving(false); return }
     }
     if (audioFile) {
-      const path = `books/${bookId}/audio-${audioFile.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`
-      const upload = await supabase.storage.from('book-content').upload(path, audioFile, { upsert: true, contentType: audioFile.type })
-      if (upload.error) { push('Book saved, but the audio upload failed.', 'error'); setSaving(false); return }
+      const uploadBody = new FormData()
+      uploadBody.append('bookId', bookId)
+      uploadBody.append('mediaType', 'audio')
+      uploadBody.append('file', audioFile)
+      const { data: upload, error: uploadError } = await supabase.functions.invoke('upload-book-file', { body: uploadBody })
+      if (uploadError || !upload?.path) { push(`Audio upload failed: ${uploadError?.message ?? upload?.error ?? 'The upload function is not deployed.'}`, 'error'); setSaving(false); return }
+      const path = upload.path
       const { error: audioPathError } = await supabase.from('books').update({ audio_file_path: path }).eq('id', bookId)
       if (audioPathError) { push('Book saved, but the audio path could not be saved.', 'error'); setSaving(false); return }
     }

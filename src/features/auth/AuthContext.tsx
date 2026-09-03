@@ -6,6 +6,7 @@ export type Profile = {
   id: string
   full_name: string
   email: string
+  phone: string | null
   role: 'member' | 'moderator' | 'librarian' | 'admin'
   avatar_url: string | null
   lounge_points: number

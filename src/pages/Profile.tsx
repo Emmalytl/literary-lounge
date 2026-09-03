@@ -7,12 +7,14 @@ export default function Profile() {
   const { profile, refreshProfile } = useAuth()
   const { push } = useToast()
   const [fullName, setFullName] = useState('')
+  const [phone, setPhone] = useState('')
   const [bio, setBio] = useState('')
   const [badges, setBadges] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (profile) setFullName(profile.full_name)
+    if (profile) setPhone(profile.phone ?? '')
     if (profile) {
       supabase
         .from('member_badges')
@@ -26,7 +28,7 @@ export default function Profile() {
     e.preventDefault()
     if (!profile) return
     setSaving(true)
-    const { error } = await supabase.from('profiles').update({ full_name: fullName, bio }).eq('id', profile.id)
+    const { error } = await supabase.from('profiles').update({ full_name: fullName, phone: phone.trim() || null, bio }).eq('id', profile.id)
     setSaving(false)
     if (error) { push('Could not save changes.', 'error'); return }
     push('Profile updated.', 'success')
@@ -41,6 +43,11 @@ export default function Profile() {
         <label className="text-sm font-medium">
           Full name
           <input value={fullName} onChange={(e) => setFullName(e.target.value)}
+            className="mt-1 w-full border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2" />
+        </label>
+        <label className="text-sm font-medium">
+          Phone number
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. +233 24 123 4567"
             className="mt-1 w-full border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2" />
         </label>
         <label className="text-sm font-medium">

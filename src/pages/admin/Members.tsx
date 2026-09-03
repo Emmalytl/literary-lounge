@@ -8,7 +8,8 @@ export default function AdminMembers() {
   const [query, setQuery] = useState('')
 
   async function load() {
-    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
+    const { data, error } = await supabase.from('profiles').select('id, full_name, email, phone, role, lounge_points, is_active, created_at').order('created_at', { ascending: false })
+    if (error) { push('Could not load members.', 'error'); return }
     setMembers(data ?? [])
   }
 
@@ -21,7 +22,7 @@ export default function AdminMembers() {
     load()
   }
 
-  const filtered = members.filter((m) => (m.full_name + m.email).toLowerCase().includes(query.toLowerCase()))
+  const filtered = members.filter((m) => `${m.full_name} ${m.email} ${m.phone ?? ''}`.toLowerCase().includes(query.toLowerCase()))
 
   return (
     <div>
@@ -32,7 +33,7 @@ export default function AdminMembers() {
         <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="text-left border-b border-ink/10 dark:border-ink-dark/10">
-              <th className="py-2">Name</th><th>Email</th><th>Role</th><th>Points</th><th>Active</th><th></th>
+              <th className="py-2">Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Points</th><th>Active</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -40,6 +41,7 @@ export default function AdminMembers() {
               <tr key={m.id} className="border-b border-ink/5 dark:border-ink-dark/5">
                 <td className="py-2">{m.full_name}</td>
                 <td>{m.email}</td>
+                <td>{m.phone || 'Not provided'}</td>
                 <td className="capitalize">{m.role}</td>
                 <td>{m.lounge_points}</td>
                 <td>{m.is_active ? 'Yes' : 'No'}</td>

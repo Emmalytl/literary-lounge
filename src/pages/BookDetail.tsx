@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, BookOpen, ExternalLink } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useToast } from '@/components/Toast'
-import { getBookById, isValidReadingUrl, recordBookOpen } from '@/services/books'
+import { getAudioFileUrl, getBookById, getBookFileUrl, isValidReadingUrl, recordBookCompletion, recordBookOpen, updateReadingProgress } from '@/services/books'
 import { supabase } from '@/lib/supabase'
 
 export default function BookDetail() {
@@ -16,23 +16,30 @@ export default function BookDetail() {
   const [note, setNote] = useState('')
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [discussion, setDiscussion] = useState<any>(null)
+  const [percent, setPercent] = useState(0)
 
   useEffect(() => {
     if (!id) return
     getBookById(id).then(setBook).catch(() => push('Book not found.', 'error'))
     if (user) {
-      supabase.from('reading_progress').select('*').eq('book_id', id).eq('member_id', user.id).maybeSingle().then(({ data }) => setProgress(data))
+      supabase.from('reading_progress').select('*').eq('book_id', id).eq('member_id', user.id).maybeSingle().then(({ data }) => { setProgress(data); setPercent(Number(data?.percent_complete ?? 0)) })
       supabase.from('reading_notes').select('*').eq('book_id', id).eq('member_id', user.id).order('updated_at', { ascending: false }).then(({ data }) => setNotes(data ?? []))
     }
     supabase.from('events').select('id, title, whatsapp_url, starts_at').eq('book_id', id).eq('status', 'scheduled').not('whatsapp_url', 'is', null).order('starts_at').limit(1).maybeSingle().then(({ data }) => setDiscussion(data))
   }, [id, user])
 
   async function openBook() {
-    if (!book?.reading_url || !isValidReadingUrl(book.reading_url)) {
+    if (book?.reading_type === 'hosted' && book.reading_file_path) {
+      try {
+        const { url } = await getBookFileUrl(book.id)
+        window.open(url, '_blank', 'noopener,noreferrer')
+      } catch { push('The uploaded book could not be opened.', 'error') }
+    } else if (book?.reading_url && isValidReadingUrl(book.reading_url)) {
+      window.open(book.reading_url, '_blank', 'noopener,noreferrer')
+    } else {
       push('Reading link not available yet.', 'info')
       return
     }
-    window.open(book.reading_url, '_blank', 'noopener,noreferrer')
     if (user) {
       try {
         await recordBookOpen(book.id)
@@ -43,16 +50,26 @@ export default function BookDetail() {
     }
   }
 
+  async function openAudio() {
+    if (book?.audio_file_path) {
+      try { const { url } = await getAudioFileUrl(book.id); window.open(url, '_blank', 'noopener,noreferrer') }
+      catch { push('The uploaded audio could not be opened.', 'error') }
+    } else if (book?.audio_url && isValidReadingUrl(book.audio_url)) window.open(book.audio_url, '_blank', 'noopener,noreferrer')
+    else push('Audio link not available yet.', 'info')
+  }
+
   async function markCompleted() {
     if (!user || !id) return
-    const { data, error } = await supabase.from('reading_progress').upsert({
-      member_id: user.id, book_id: id, status: 'completed', percent_complete: 100,
-      started_at: progress?.started_at ?? new Date().toISOString(), completed_at: new Date().toISOString(),
-      last_opened_at: progress?.last_opened_at ?? new Date().toISOString(), updated_at: new Date().toISOString()
-    }, { onConflict: 'member_id,book_id' }).select().single()
-    if (error) { push('Could not update reading progress.', 'error'); return }
-    setProgress(data)
+    if (percent < 85) { push('Read at least 85% before marking this book completed.', 'info'); return }
+    try { await recordBookCompletion(id) } catch (error: any) { push(error?.message ?? 'Could not update reading progress.', 'error'); return }
+    setProgress((current: any) => ({ ...(current ?? {}), status: 'completed', percent_complete: percent, completed_at: new Date().toISOString() }))
     push('Book marked as completed.', 'success')
+  }
+
+  async function saveProgress() {
+    if (!user || !id) return
+    try { setProgress(await updateReadingProgress(user.id, id, percent)); push('Reading progress updated.', 'success') }
+    catch { push('Could not update reading progress.', 'error') }
   }
 
   async function addNote(e: React.FormEvent) {
@@ -90,9 +107,10 @@ export default function BookDetail() {
           {book.genre && <p className="text-sm opacity-60 mt-2">Category: {book.genre}</p>}
           <p className="mt-4 opacity-80 max-w-prose">{book.description || 'No description available yet.'}</p>
           <div className="mt-6 text-sm opacity-70 space-y-1"><p>Reading source: {book.reading_source || 'External source'}</p><p>Reading activity is tracked here; your external reading position is not.</p></div>
-          {book.reading_url && isValidReadingUrl(book.reading_url) ? (
+          {(book.reading_type === 'hosted' && book.reading_file_path) || (book.reading_url && isValidReadingUrl(book.reading_url)) ? (
             <button type="button" onClick={openBook} className="btn-primary mt-6"><ExternalLink size={16} /> Read Book</button>
           ) : <p className="mt-6 text-sm opacity-70">Reading link not available yet.</p>}
+          {(book.audio_file_path || (book.audio_url && isValidReadingUrl(book.audio_url))) && <button type="button" onClick={openAudio} className="btn-secondary mt-3 ml-2"><ExternalLink size={16} /> Listen to Audio</button>}
         </div>
       </div>
 
@@ -100,6 +118,9 @@ export default function BookDetail() {
         <section className="card">
           <h2 className="font-display text-xl mb-3">Your Reading</h2>
           <p className="text-sm">Status: <span className="capitalize">{progress?.status ?? 'not started'}</span></p>
+          <label className="block text-sm mt-3">Your reading progress: {percent}%<input type="range" min="0" max="100" value={percent} onChange={(e) => setPercent(Number(e.target.value))} className="w-full mt-2" /></label>
+          <button type="button" onClick={saveProgress} className="btn-secondary mt-3">Save progress</button>
+          <p className="text-xs opacity-60 mt-2">Completion unlocks at 85%.</p>
           {progress?.last_opened_at && <p className="text-sm opacity-70 mt-1">Last activity: {new Date(progress.last_opened_at).toLocaleDateString()}</p>}
           <button type="button" onClick={markCompleted} disabled={progress?.status === 'completed'} className="btn-secondary mt-4 disabled:opacity-50">{progress?.status === 'completed' ? 'Completed' : 'Mark as completed'}</button>
         </section>

@@ -21,6 +21,32 @@ export async function recordBookOpen(bookId: string) {
   if (error) throw error
 }
 
+export async function recordBookCompletion(bookId: string) {
+  const { error } = await supabase.rpc('record_book_completion', { p_book_id: bookId })
+  if (error) throw error
+}
+
+export async function getBookFileUrl(bookId: string) {
+  const { data, error } = await supabase.functions.invoke('get-book-file-url', { body: { bookId, mediaType: 'book' } })
+  if (error) throw error
+  return data as { url: string; expiresIn: number }
+}
+
+export async function getAudioFileUrl(bookId: string) {
+  const { data, error } = await supabase.functions.invoke('get-book-file-url', { body: { bookId, mediaType: 'audio' } })
+  if (error) throw error
+  return data as { url: string; expiresIn: number }
+}
+
+export async function updateReadingProgress(memberId: string, bookId: string, percent: number) {
+  const { data, error } = await supabase.from('reading_progress').upsert({
+    member_id: memberId, book_id: bookId, percent_complete: percent,
+    status: percent >= 85 ? 'reading' : 'reading', started_at: new Date().toISOString(), updated_at: new Date().toISOString()
+  }, { onConflict: 'member_id,book_id' }).select().single()
+  if (error) throw error
+  return data
+}
+
 export function isValidReadingUrl(url: string) {
   try {
     const parsed = new URL(url)

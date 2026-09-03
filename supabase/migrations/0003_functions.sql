@@ -104,9 +104,16 @@ begin
         recorded_by = auth.uid()
   returning id into v_payment_id;
 
-  insert into lounge_fund_transactions (type, amount, source_table, source_id, description)
-  values ('income', p_amount, 'membership_payments', v_payment_id,
-          'Membership dues — ' || to_char(p_billing_month, 'Mon YYYY'));
+  update lounge_fund_transactions
+  set amount = p_amount,
+      description = 'Membership dues - ' || to_char(p_billing_month, 'Mon YYYY')
+  where source_table = 'membership_payments' and source_id = v_payment_id;
+
+  if not found then
+    insert into lounge_fund_transactions (type, amount, source_table, source_id, description)
+    values ('income', p_amount, 'membership_payments', v_payment_id,
+            'Membership dues - ' || to_char(p_billing_month, 'Mon YYYY'));
+  end if;
 
   insert into audit_logs (actor_id, action, entity_table, entity_id, metadata)
   values (auth.uid(), 'payment_recorded', 'membership_payments', v_payment_id,

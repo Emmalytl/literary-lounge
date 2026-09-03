@@ -1,6 +1,7 @@
 import { useEffect, useState, FormEvent } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+import { downloadCsv, formatMoney } from '@/utils/csv'
 
 export default function AdminPayments() {
   const { push } = useToast()
@@ -11,14 +12,21 @@ export default function AdminPayments() {
   const [method, setMethod] = useState('Mobile Money')
   const [reference, setReference] = useState('')
   const [recent, setRecent] = useState<any[]>([])
+  const [allPayments, setAllPayments] = useState<any[]>([])
 
   async function loadRecent() {
-    const { data } = await supabase
-      .from('membership_payments')
-      .select('*, profiles(full_name)')
-      .order('created_at', { ascending: false })
-      .limit(20)
-    setRecent(data ?? [])
+    const [{ data: payments, error: paymentError }, { data: profiles, error: profileError }] = await Promise.all([
+      supabase.from('membership_payments').select('*').order('payment_date', { ascending: false }),
+      supabase.from('profiles').select('id, full_name')
+    ])
+    if (paymentError || profileError) {
+      push(paymentError?.message ?? profileError?.message ?? 'Could not load payment records.', 'error')
+      return
+    }
+    const names = new Map((profiles ?? []).map((profile) => [profile.id, profile.full_name]))
+    const rows = (payments ?? []).map((payment) => ({ ...payment, memberName: names.get(payment.member_id) ?? 'Unknown member' }))
+    setAllPayments(rows)
+    setRecent(rows.slice(0, 20))
   }
 
   useEffect(() => {
@@ -45,6 +53,16 @@ export default function AdminPayments() {
     loadRecent()
   }
 
+  function exportPayments() {
+    downloadCsv('literary-lounge-payments.csv',
+      ['Payment date', 'Billing month', 'Member', 'Amount', 'Currency', 'Status', 'Method', 'Reference'],
+      allPayments.map((payment) => [payment.payment_date, payment.billing_month, payment.memberName,
+        Number(payment.amount).toFixed(2), payment.currency, payment.status, payment.payment_method, payment.reference_number]))
+  }
+
+  const paidTotal = allPayments.filter((payment) => payment.status === 'paid')
+    .reduce((total, payment) => total + Number(payment.amount), 0)
+
   return (
     <div>
       <h1 className="font-display text-3xl mb-6">Dues & Payments</h1>
@@ -70,7 +88,13 @@ export default function AdminPayments() {
         <button type="submit" className="btn-primary self-start">Record payment</button>
       </form>
 
-      <h2 className="font-display text-xl mb-3">Recent payments</h2>
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+        <div>
+          <h2 className="font-display text-xl">Recent payments</h2>
+          <p className="text-sm opacity-60">{allPayments.length} recorded · Paid total {formatMoney(paidTotal)}</p>
+        </div>
+        <button type="button" onClick={exportPayments} className="btn-secondary">Export payments CSV</button>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[600px]">
           <thead>
@@ -81,9 +105,9 @@ export default function AdminPayments() {
           <tbody>
             {recent.map((p) => (
               <tr key={p.id} className="border-b border-ink/5 dark:border-ink-dark/5">
-                <td className="py-2">{p.profiles?.full_name}</td>
+                <td className="py-2">{p.memberName}</td>
                 <td>{new Date(p.billing_month).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</td>
-                <td>{p.currency} {p.amount}</td>
+                <td>{formatMoney(p.amount, p.currency)}</td>
                 <td className="capitalize">{p.status}</td>
               </tr>
             ))}

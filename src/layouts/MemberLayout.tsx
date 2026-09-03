@@ -53,12 +53,12 @@ export function MemberLayout() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-paper dark:bg-paper-dark border-t border-ink/10 dark:border-ink-dark/10 flex justify-around py-2 z-40">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-paper dark:bg-paper-dark border-t border-ink/10 dark:border-ink-dark/10 flex gap-1 overflow-x-auto px-2 py-2 z-40">
         {navItems.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
-            className={`flex flex-col items-center gap-1 text-xs px-2 py-1 ${
+            className={`flex min-w-[4.25rem] flex-1 flex-col items-center gap-1 text-xs px-2 py-1 ${
               location.pathname === to ? 'text-gold' : 'opacity-70'
             }`}
           >
@@ -66,6 +66,16 @@ export function MemberLayout() {
             {label}
           </Link>
         ))}
+        {profile?.role === 'admin' && (
+          <Link to="/admin" className="flex min-w-[4.25rem] flex-1 flex-col items-center gap-1 text-xs px-2 py-1 opacity-70">
+            <ShieldCheck size={20} />
+            Admin
+          </Link>
+        )}
+        <button onClick={signOut} className="flex min-w-[4.25rem] flex-1 flex-col items-center gap-1 text-xs px-2 py-1 text-clay">
+          <LogOut size={20} />
+          Log out
+        </button>
       </nav>
     </div>
   )

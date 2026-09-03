@@ -1,6 +1,7 @@
 import { useEffect, useState, FormEvent } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+import { downloadCsv, formatMoney } from '@/utils/csv'
 
 const categories = ['Venue','Refreshments','Books','Author','Transport','Event','Equipment','Marketing','Other']
 
@@ -12,7 +13,8 @@ export default function AdminExpenses() {
   const [expenses, setExpenses] = useState<any[]>([])
 
   async function load() {
-    const { data } = await supabase.from('expenses').select('*').order('expense_date', { ascending: false }).limit(20)
+    const { data, error } = await supabase.from('expenses').select('*').order('expense_date', { ascending: false })
+    if (error) { push(error.message, 'error'); return }
     setExpenses(data ?? [])
   }
   useEffect(() => { load() }, [])
@@ -36,6 +38,15 @@ export default function AdminExpenses() {
     load()
   }
 
+  function exportExpenses() {
+    downloadCsv('literary-lounge-expenses.csv',
+      ['Expense date', 'Category', 'Description', 'Amount', 'Currency', 'Vendor', 'Payment method', 'Receipt reference'],
+      expenses.map((expense) => [expense.expense_date, expense.category, expense.description,
+        Number(expense.amount).toFixed(2), expense.currency, expense.vendor, expense.payment_method, expense.receipt_reference]))
+  }
+
+  const expenseTotal = expenses.reduce((total, expense) => total + Number(expense.amount), 0)
+
   return (
     <div>
       <h1 className="font-display text-3xl mb-6">Expenses</h1>
@@ -52,6 +63,13 @@ export default function AdminExpenses() {
         <button type="submit" className="btn-primary self-start">Record expense</button>
       </form>
 
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+        <div>
+          <h2 className="font-display text-xl">Expense ledger</h2>
+          <p className="text-sm opacity-60">{expenses.length} recorded · Total {formatMoney(expenseTotal)}</p>
+        </div>
+        <button type="button" onClick={exportExpenses} className="btn-secondary">Export expenses CSV</button>
+      </div>
       <div className="flex flex-col gap-2">
         {expenses.map((x) => (
           <div key={x.id} className="card flex justify-between">
@@ -59,7 +77,7 @@ export default function AdminExpenses() {
               <p className="font-medium">{x.description}</p>
               <p className="text-xs opacity-60">{x.category} · {new Date(x.expense_date).toLocaleDateString()}</p>
             </div>
-            <p className="font-medium">GHS {x.amount}</p>
+            <p className="font-medium">{formatMoney(x.amount, x.currency)}</p>
           </div>
         ))}
       </div>

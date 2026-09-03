@@ -2,6 +2,7 @@ import { useEffect, useState, FormEvent } from 'react'
 import { Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+import { isValidReadingUrl } from '@/services/books'
 
 const emptyForm = {
   title: '', author: '', description: '', cover_url: '', genre: '', reading_source: '', reading_url: '',
@@ -63,13 +64,14 @@ export default function AdminBooks() {
     if (coverFile && coverFile.size > 10 * 1024 * 1024) { push('Cover images must be 10 MB or smaller.', 'error'); return }
     if (bookFile && (!['application/epub+zip', 'application/octet-stream', ''].includes(bookFile.type) || !bookFile.name.toLowerCase().endsWith('.epub') || bookFile.size > 50 * 1024 * 1024)) { push('Book files must be EPUB files, 50 MB or smaller, and use a .epub extension.', 'error'); return }
     if (!bookFile && !existingReadingFilePath) { push('Upload an EPUB book before saving.', 'error'); return }
+    if (form.audio_url && !isValidReadingUrl(form.audio_url)) { push('Audio URL must use http:// or https://.', 'error'); return }
     if (audioFile && ((!['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/wave', 'audio/ogg', 'audio/webm', 'application/octet-stream', ''].includes(audioFile.type) || !['.mp3', '.m4a', '.wav', '.ogg', '.webm'].some((extension) => audioFile.name.toLowerCase().endsWith(extension))) || audioFile.size > 100 * 1024 * 1024)) { push('Audio must be MP3, M4A, WAV, OGG, or WebM and 100 MB or smaller.', 'error'); return }
     setSaving(true)
 
     const values = {
       title: form.title.trim(), author: form.author.trim(), description: form.description.trim() || null,
       cover_url: form.cover_url.trim() || null, genre: form.genre.trim() || null, reading_source: form.reading_source.trim() || null,
-      reading_url: null, audio_url: null, reading_type: 'hosted', status: form.status
+      reading_url: null, audio_url: audioFile ? null : form.audio_url.trim() || null, reading_type: 'hosted', status: form.status
     }
     const result = editingId
       ? await supabase.from('books').update(values).eq('id', editingId).select('id').single()
@@ -90,7 +92,7 @@ export default function AdminBooks() {
     if (bookFile) {
       const path = `books/${bookId}/book.epub`
       const upload = await supabase.storage.from('book-content').upload(path, bookFile, { upsert: true, contentType: 'application/epub+zip' })
-      if (upload.error) { push(`Book saved, but the EPUB upload failed: ${upload.error.message}`, 'error'); setSaving(false); return }
+      if (upload.error) { push(`EPUB upload failed. Apply migration 0011_book_content_insert_rls.sql in Supabase, then try again. Details: ${upload.error.message}`, 'error'); setSaving(false); return }
       const { error: pathError } = await supabase.from('books').update({ reading_file_path: path, reading_type: 'hosted' }).eq('id', bookId)
       if (pathError) { push('Book saved, but the EPUB path could not be saved.', 'error'); setSaving(false); return }
     }
@@ -158,6 +160,7 @@ export default function AdminBooks() {
           <label className="mt-3 block text-sm">Upload EPUB book<input type="file" accept=".epub" onChange={(e) => setBookFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">EPUB only, maximum 50 MB. Members will read the private uploaded file.</span></label>
         </div>
         <label className="text-sm">Upload audio file (optional replacement)<input type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/ogg,audio/webm,.mp3,.m4a,.wav,.ogg,.webm" onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">MP3, M4A, WAV, OGG, or WebM. Maximum 100 MB. Audio stays private.</span></label>
+        <label className="text-sm">Audio URL (optional)<input type="url" placeholder="https://..." value={form.audio_url} onChange={(e) => updateField('audio_url', e.target.value)} className="finance-input mt-1" /><span className="block text-xs opacity-60 mt-1">Use a URL when you do not have an audio file. An uploaded file takes priority.</span></label>
         <select value={form.status} onChange={(e) => updateField('status', e.target.value)} className="finance-input"><option value="draft">Unpublished</option><option value="published">Published</option></select>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_current_book} onChange={(e) => updateField('is_current_book', e.target.checked)} /> Current Book of the Month</label>
         <div className="flex flex-col gap-2 sm:flex-row"><button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto">{saving ? 'Saving...' : editingId ? 'Save changes' : 'Add to library'}</button>{editingId && <button type="button" onClick={resetForm} className="btn-secondary w-full sm:w-auto">Cancel</button>}</div>

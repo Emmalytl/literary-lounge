@@ -12,6 +12,14 @@ const emptyForm = {
 
 type BookForm = typeof emptyForm
 
+function getStoragePath(value: string) {
+  const trimmed = value.trim()
+  const marker = '/book-content/'
+  const markerIndex = trimmed.indexOf(marker)
+  if (markerIndex >= 0) return decodeURIComponent(trimmed.slice(markerIndex + marker.length).split('?')[0])
+  return trimmed
+}
+
 export default function AdminBooks() {
   const { push } = useToast()
   const [books, setBooks] = useState<any[]>([])
@@ -65,7 +73,7 @@ export default function AdminBooks() {
     if (coverFile && !['image/jpeg', 'image/png'].includes(coverFile.type)) { push('Cover must be a JPEG or PNG image.', 'error'); return }
     if (coverFile && coverFile.size > 10 * 1024 * 1024) { push('Cover images must be 10 MB or smaller.', 'error'); return }
     if (bookFile && (!['application/epub+zip', 'application/octet-stream', ''].includes(bookFile.type) || !bookFile.name.toLowerCase().endsWith('.epub') || bookFile.size > 50 * 1024 * 1024)) { push('Book files must be EPUB files, 50 MB or smaller, and use a .epub extension.', 'error'); return }
-    const existingEpubPath = form.existing_epub_path.trim()
+    const existingEpubPath = getStoragePath(form.existing_epub_path)
     if (!bookFile && !existingReadingFilePath && !existingEpubPath) { push('Upload an EPUB book or enter its existing Storage path before saving.', 'error'); return }
     if (existingEpubPath && !existingEpubPath.toLowerCase().endsWith('.epub')) { push('The existing Storage path must point to an .epub file.', 'error'); return }
     if (form.audio_url && !isValidReadingUrl(form.audio_url)) { push('Audio URL must use http:// or https://.', 'error'); return }
@@ -174,7 +182,7 @@ export default function AdminBooks() {
         </div>
         <div className="rounded-sm border border-gold/40 bg-gold/5 p-3">
           <label className="mt-3 block text-sm">Upload EPUB book<input type="file" accept=".epub" onChange={(e) => setBookFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">EPUB only, maximum 50 MB. Members will read the private uploaded file.</span></label>
-          <label className="mt-3 block text-sm">Existing EPUB Storage path (optional)<input placeholder="books/book-id/book.epub" value={form.existing_epub_path} onChange={(e) => updateField('existing_epub_path', e.target.value)} className="finance-input mt-1" /><span className="block text-xs opacity-60 mt-1">Use this when the EPUB was already uploaded in Supabase Storage. Copy the path exactly from the book-content bucket.</span></label>
+          <label className="mt-3 block text-sm">Existing EPUB Storage path (optional)<input placeholder="Jack London WHITE FANG E-PUB.epub" value={form.existing_epub_path} onChange={(e) => updateField('existing_epub_path', e.target.value)} className="finance-input mt-1" /><span className="block text-xs opacity-60 mt-1">Paste the path from the book-content bucket, or paste the full Storage URL. The app will use only the file path.</span></label>
         </div>
         <label className="text-sm">Upload audio file (optional replacement)<input type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/ogg,audio/webm,.mp3,.m4a,.wav,.ogg,.webm" onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">MP3, M4A, WAV, OGG, or WebM. Maximum 100 MB. Audio stays private.</span></label>
         <label className="text-sm">Audio URL (optional)<input type="url" placeholder="https://..." value={form.audio_url} onChange={(e) => updateField('audio_url', e.target.value)} className="finance-input mt-1" /><span className="block text-xs opacity-60 mt-1">Use a URL when you do not have an audio file. An uploaded file takes priority.</span></label>

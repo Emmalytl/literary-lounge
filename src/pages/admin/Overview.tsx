@@ -27,9 +27,7 @@ export default function AdminOverview() {
         <Card label="Lounge Fund balance" value={`GHS ${counts.fund.toFixed(2)}`} />
       </div>
       <p className="opacity-60 text-sm mt-8">
-        Detailed monthly / six-month / annual reports and CSV exports are documented in
-        docs/finance-reporting.md as a build-next item -- the schema and record_payment /
-        record_expense functions they depend on are already in place.
+        Use Dues & Payments and Expenses to review the finance ledgers, totals, and CSV exports.
       </p>
     </div>
   )

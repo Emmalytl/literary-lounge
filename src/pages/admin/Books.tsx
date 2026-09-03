@@ -133,7 +133,7 @@ export default function AdminBooks() {
           <input placeholder="Reading source" value={form.reading_source} onChange={(e) => updateField('reading_source', e.target.value)} className="finance-input" />
         </div>
         <div className="rounded-sm border border-gold/40 bg-gold/5 p-3">
-          <label className="mt-3 block text-sm">Upload EPUB book<input type="file" accept="application/epub+zip,.epub" onChange={(e) => setBookFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">EPUB only, maximum 50 MB. Members will read the private uploaded file.</span></label>
+          <label className="mt-3 block text-sm">Upload EPUB book<input type="file" accept=".epub" onChange={(e) => setBookFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">EPUB only, maximum 50 MB. Members will read the private uploaded file.</span></label>
         </div>
         <label className="text-sm">Upload audio file (optional replacement)<input type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/ogg,audio/webm,.mp3,.m4a,.wav,.ogg,.webm" onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">MP3, M4A, WAV, OGG, or WebM. Maximum 100 MB. Audio stays private.</span></label>
         <select value={form.status} onChange={(e) => updateField('status', e.target.value)} className="finance-input"><option value="draft">Unpublished</option><option value="published">Published</option></select>

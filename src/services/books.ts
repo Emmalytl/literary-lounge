@@ -28,13 +28,15 @@ export async function recordBookCompletion(bookId: string) {
 
 export async function getBookFileUrl(bookId: string) {
   const { data, error } = await supabase.functions.invoke('get-book-file-url', { body: { bookId, mediaType: 'book' } })
-  if (error) throw error
+  if (error) throw new Error(`The book access function is unavailable. Deploy get-book-file-url in Supabase. (${error.message})`)
+  if (!data?.url) throw new Error(data?.error ?? 'No signed EPUB URL was returned')
   return data as { url: string; expiresIn: number }
 }
 
 export async function getAudioFileUrl(bookId: string) {
   const { data, error } = await supabase.functions.invoke('get-book-file-url', { body: { bookId, mediaType: 'audio' } })
-  if (error) throw error
+  if (error) throw new Error(`The media access function is unavailable. Deploy get-book-file-url in Supabase. (${error.message})`)
+  if (!data?.url) throw new Error(data?.error ?? 'No signed media URL was returned')
   return data as { url: string; expiresIn: number }
 }
 

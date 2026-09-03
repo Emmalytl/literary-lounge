@@ -45,8 +45,18 @@ export default function Reader() {
         const { default: ePub } = await import('epubjs')
         if (cancelled || !epubContainer.current) return
         epubBook = ePub(url, { openAs: 'epub' })
-        await epubBook.ready
-        await epubBook.locations.generate(1000)
+await epubBook.ready
+
+// Cache the slow location-scan per book, so it only runs once per
+// device instead of on every single open.
+const cacheKey = `epub-locations-${book.id}`
+const cached = localStorage.getItem(cacheKey)
+if (cached) {
+  epubBook.locations.load(cached)
+} else {
+  await epubBook.locations.generate(1000)
+  localStorage.setItem(cacheKey, epubBook.locations.save())
+}
         if (cancelled || !epubContainer.current) return
         rendition = epubBook.renderTo(epubContainer.current, { width: '100%', height: '70vh' })
         rendition.on('relocated', (location: any) => {

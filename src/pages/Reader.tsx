@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Type, Sun, Moon } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
+import { ArrowLeft, ChevronLeft, ChevronRight, Type, Sun, Moon } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
-import { getBookById, getBookFileUrl, getChapters, getChapterSignedUrl, upsertReadingProgress, updateReadingProgress } from '@/services/books'
+import { getBookById, getBookFileUrl, getChapters, getChapterSignedUrl, recordBookCompletion, upsertReadingProgress, updateReadingProgress } from '@/services/books'
 import { useToast } from '@/components/Toast'
 import { supabase } from '@/lib/supabase'
 
@@ -19,6 +19,8 @@ export default function Reader() {
   const [loading, setLoading] = useState(true)
   const [epubPercent, setEpubPercent] = useState(0)
   const [epubError, setEpubError] = useState('')
+  const [completed, setCompleted] = useState(false)
+  const [completionSaving, setCompletionSaving] = useState(false)
   const epubContainer = useRef<HTMLDivElement>(null)
   // Holds the live epub.js "rendition" so the Previous/Next buttons below
   // can tell it to turn pages.
@@ -89,11 +91,12 @@ export default function Reader() {
 
         const savedProgress = await supabase
           .from('reading_progress')
-          .select('percent_complete')
+          .select('percent_complete, status')
           .eq('book_id', book.id)
           .eq('member_id', profile.id)
           .maybeSingle()
         const savedPercent = Number(savedProgress.data?.percent_complete ?? 0)
+        if (!cancelled) setCompleted(savedProgress.data?.status === 'completed')
         await rendition.display(
           savedPercent > 0 ? epubBook.locations.cfiFromPercentage(savedPercent / 100) : undefined
         )
@@ -111,6 +114,20 @@ export default function Reader() {
       epubBook?.destroy()
     }
   }, [book, profile])
+
+  async function markCompleted() {
+    if (!bookId || completionSaving || completed) return
+    setCompletionSaving(true)
+    try {
+      await recordBookCompletion(bookId)
+      setCompleted(true)
+      push('Book marked as completed.', 'success')
+    } catch {
+      push('You need at least 85% progress before completing this book.', 'info')
+    } finally {
+      setCompletionSaving(false)
+    }
+  }
 
   useEffect(() => {
     const chapter = chapters[chapterIndex]
@@ -142,6 +159,7 @@ export default function Reader() {
       <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
         <div className="bg-paper dark:bg-paper-dark min-h-screen">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+            <Link to="/library" className="mb-5 inline-flex items-center gap-2 text-sm opacity-70"><ArrowLeft size={16} /> Back to Library</Link>
             <div className="flex items-center justify-between gap-4 text-sm opacity-70 mb-6">
               <div>
                 <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
@@ -161,6 +179,7 @@ export default function Reader() {
             ) : (
               <>
                 <div ref={epubContainer} style={{ fontSize }} className="min-h-[70vh] overflow-hidden" />
+                {epubPercent >= 85 && <div className="mt-5 flex flex-wrap items-center gap-3"><button type="button" onClick={markCompleted} disabled={completed || completionSaving} className="btn-primary disabled:opacity-60">{completed ? 'Completed' : completionSaving ? 'Saving...' : 'Mark as completed'}</button>{!completed && <span className="text-sm opacity-70">You have reached the 85% completion threshold.</span>}</div>}
                 <div className="flex items-center justify-between mt-6">
                   <button onClick={() => renditionRef.current?.prev()} className="btn-secondary">
                     <ChevronLeft size={16} /> Previous
@@ -184,6 +203,7 @@ export default function Reader() {
     <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
       <div className="bg-paper dark:bg-paper-dark min-h-screen">
         <div className="max-w-prose mx-auto px-4 sm:px-6 py-8">
+          <Link to="/library" className="mb-5 inline-flex items-center gap-2 text-sm opacity-70"><ArrowLeft size={16} /> Back to Library</Link>
           <div className="flex items-center justify-between text-sm opacity-70 mb-6">
             <div>
               <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
@@ -201,6 +221,8 @@ export default function Reader() {
           <div style={{ fontSize }} className="leading-relaxed whitespace-pre-wrap">
             {content}
           </div>
+
+          {percent >= 85 && <div className="mt-5 flex flex-wrap items-center gap-3"><button type="button" onClick={markCompleted} disabled={completed || completionSaving} className="btn-primary disabled:opacity-60">{completed ? 'Completed' : completionSaving ? 'Saving...' : 'Mark as completed'}</button>{!completed && <span className="text-sm opacity-70">You have reached the 85% completion threshold.</span>}</div>}
 
           <div className="flex items-center justify-between mt-10">
             <button

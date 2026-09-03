@@ -6,7 +6,8 @@ import { isValidReadingUrl } from '@/services/books'
 
 const emptyForm = {
   title: '', author: '', description: '', cover_url: '', genre: '', reading_source: '', reading_url: '',
-  audio_url: '', reading_type: 'hosted', status: 'draft', is_current_book: false
+  audio_url: '', reading_type: 'hosted', status: 'draft', is_current_book: false,
+  existing_epub_path: ''
 }
 
 type BookForm = typeof emptyForm
@@ -39,7 +40,8 @@ export default function AdminBooks() {
     setForm({
       title: book.title ?? '', author: book.author ?? '', description: book.description ?? '', cover_url: book.cover_url ?? '',
       genre: book.genre ?? '', reading_source: book.reading_source ?? '', reading_url: book.reading_url ?? '', audio_url: book.audio_url ?? '',
-      reading_type: book.reading_type ?? 'hosted', status: book.status ?? 'draft', is_current_book: Boolean(book.is_current_book)
+      reading_type: book.reading_type ?? 'hosted', status: book.status ?? 'draft', is_current_book: Boolean(book.is_current_book),
+      existing_epub_path: book.reading_file_path ?? ''
     })
     setBookFile(null)
     setCoverFile(null)
@@ -63,7 +65,9 @@ export default function AdminBooks() {
     if (coverFile && !['image/jpeg', 'image/png'].includes(coverFile.type)) { push('Cover must be a JPEG or PNG image.', 'error'); return }
     if (coverFile && coverFile.size > 10 * 1024 * 1024) { push('Cover images must be 10 MB or smaller.', 'error'); return }
     if (bookFile && (!['application/epub+zip', 'application/octet-stream', ''].includes(bookFile.type) || !bookFile.name.toLowerCase().endsWith('.epub') || bookFile.size > 50 * 1024 * 1024)) { push('Book files must be EPUB files, 50 MB or smaller, and use a .epub extension.', 'error'); return }
-    if (!bookFile && !existingReadingFilePath) { push('Upload an EPUB book before saving.', 'error'); return }
+    const existingEpubPath = form.existing_epub_path.trim()
+    if (!bookFile && !existingReadingFilePath && !existingEpubPath) { push('Upload an EPUB book or enter its existing Storage path before saving.', 'error'); return }
+    if (existingEpubPath && !existingEpubPath.toLowerCase().endsWith('.epub')) { push('The existing Storage path must point to an .epub file.', 'error'); return }
     if (form.audio_url && !isValidReadingUrl(form.audio_url)) { push('Audio URL must use http:// or https://.', 'error'); return }
     if (audioFile && ((!['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/wave', 'audio/ogg', 'audio/webm', 'application/octet-stream', ''].includes(audioFile.type) || !['.mp3', '.m4a', '.wav', '.ogg', '.webm'].some((extension) => audioFile.name.toLowerCase().endsWith(extension))) || audioFile.size > 100 * 1024 * 1024)) { push('Audio must be MP3, M4A, WAV, OGG, or WebM and 100 MB or smaller.', 'error'); return }
     setSaving(true)
@@ -71,7 +75,7 @@ export default function AdminBooks() {
     const values = {
       title: form.title.trim(), author: form.author.trim(), description: form.description.trim() || null,
       cover_url: form.cover_url.trim() || null, genre: form.genre.trim() || null, reading_source: form.reading_source.trim() || null,
-      reading_url: null, audio_url: audioFile ? null : form.audio_url.trim() || null, reading_type: 'hosted', status: form.status
+      reading_url: null, audio_url: audioFile ? null : form.audio_url.trim() || null, reading_file_path: null, reading_type: 'hosted', status: form.status
     }
     const result = editingId
       ? await supabase.from('books').update(values).eq('id', editingId).select('id').single()
@@ -99,6 +103,10 @@ export default function AdminBooks() {
       const path = upload.path
       const { error: pathError } = await supabase.from('books').update({ reading_file_path: path, reading_type: 'hosted' }).eq('id', bookId)
       if (pathError) { push('Book saved, but the EPUB path could not be saved.', 'error'); setSaving(false); return }
+    } else if (existingEpubPath || existingReadingFilePath) {
+      const path = existingEpubPath || existingReadingFilePath
+      const { error: pathError } = await supabase.from('books').update({ reading_file_path: path, reading_type: 'hosted' }).eq('id', bookId)
+      if (pathError) { push('Book saved, but the existing EPUB path could not be saved.', 'error'); setSaving(false); return }
     }
     if (audioFile) {
       const uploadBody = new FormData()
@@ -166,6 +174,7 @@ export default function AdminBooks() {
         </div>
         <div className="rounded-sm border border-gold/40 bg-gold/5 p-3">
           <label className="mt-3 block text-sm">Upload EPUB book<input type="file" accept=".epub" onChange={(e) => setBookFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">EPUB only, maximum 50 MB. Members will read the private uploaded file.</span></label>
+          <label className="mt-3 block text-sm">Existing EPUB Storage path (optional)<input placeholder="books/book-id/book.epub" value={form.existing_epub_path} onChange={(e) => updateField('existing_epub_path', e.target.value)} className="finance-input mt-1" /><span className="block text-xs opacity-60 mt-1">Use this when the EPUB was already uploaded in Supabase Storage. Copy the path exactly from the book-content bucket.</span></label>
         </div>
         <label className="text-sm">Upload audio file (optional replacement)<input type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/ogg,audio/webm,.mp3,.m4a,.wav,.ogg,.webm" onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">MP3, M4A, WAV, OGG, or WebM. Maximum 100 MB. Audio stays private.</span></label>
         <label className="text-sm">Audio URL (optional)<input type="url" placeholder="https://..." value={form.audio_url} onChange={(e) => updateField('audio_url', e.target.value)} className="finance-input mt-1" /><span className="block text-xs opacity-60 mt-1">Use a URL when you do not have an audio file. An uploaded file takes priority.</span></label>

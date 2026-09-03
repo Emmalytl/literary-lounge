@@ -15,6 +15,7 @@ export default function AdminBooks() {
   const [books, setBooks] = useState<any[]>([])
   const [form, setForm] = useState<BookForm>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
   const [pdfFile, setPdfFile] = useState<File | null>(null)
   const [audioFile, setAudioFile] = useState<File | null>(null)
 
@@ -38,6 +39,7 @@ export default function AdminBooks() {
       reading_type: book.reading_type ?? 'external_url', status: book.status ?? 'draft', is_current_book: Boolean(book.is_current_book)
     })
     setPdfFile(null)
+    setCoverFile(null)
     setAudioFile(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -46,6 +48,7 @@ export default function AdminBooks() {
     setForm(emptyForm)
     setEditingId(null)
     setPdfFile(null)
+    setCoverFile(null)
     setAudioFile(null)
   }
 
@@ -53,6 +56,8 @@ export default function AdminBooks() {
     e.preventDefault()
     if (form.reading_url && !isValidReadingUrl(form.reading_url)) { push('Reading URL must use http:// or https://.', 'error'); return }
     if (form.audio_url && !isValidReadingUrl(form.audio_url)) { push('Audio URL must use http:// or https://.', 'error'); return }
+    if (coverFile && !['image/jpeg', 'image/png'].includes(coverFile.type)) { push('Cover must be a JPEG or PNG image.', 'error'); return }
+    if (coverFile && coverFile.size > 10 * 1024 * 1024) { push('Cover images must be 10 MB or smaller.', 'error'); return }
     if (pdfFile && (pdfFile.type !== 'application/pdf' || pdfFile.size > 50 * 1024 * 1024)) { push('PDF files must be 50 MB or smaller.', 'error'); return }
     if (audioFile && (!audioFile.type.startsWith('audio/') || audioFile.size > 100 * 1024 * 1024)) { push('Audio files must be 100 MB or smaller.', 'error'); return }
 
@@ -68,6 +73,16 @@ export default function AdminBooks() {
     if (result.error || !result.data) { push('Could not save book. Check the details and try again.', 'error'); return }
 
     const bookId = result.data.id
+    if (coverFile) {
+      const extension = coverFile.type === 'image/png' ? 'png' : 'jpg'
+      const slug = form.title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      const path = `${bookId}-${slug}.${extension}`
+      const upload = await supabase.storage.from('book-covers').upload(path, coverFile, { contentType: coverFile.type, upsert: false })
+      if (upload.error) { push('Book saved, but the cover upload failed.', 'error'); return }
+      const { data: publicCover } = supabase.storage.from('book-covers').getPublicUrl(path)
+      const { error: coverPathError } = await supabase.from('books').update({ cover_url: publicCover.publicUrl }).eq('id', bookId)
+      if (coverPathError) { push('Book saved, but the cover URL could not be saved.', 'error'); return }
+    }
     if (pdfFile) {
       const path = `books/${bookId}/book.pdf`
       const upload = await supabase.storage.from('book-content').upload(path, pdfFile, { upsert: true, contentType: 'application/pdf' })
@@ -106,6 +121,7 @@ export default function AdminBooks() {
         <input required placeholder="Author" value={form.author} onChange={(e) => updateField('author', e.target.value)} className="finance-input" />
         <textarea placeholder="Short description" value={form.description} onChange={(e) => updateField('description', e.target.value)} className="finance-input min-h-24" />
         <input type="url" placeholder="Cover image URL (optional)" value={form.cover_url} onChange={(e) => updateField('cover_url', e.target.value)} className="finance-input" />
+        <label className="text-sm">Upload cover image (optional)<input type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} className="block w-full mt-1 text-sm" /><span className="block text-xs opacity-60 mt-1">JPEG or PNG only. Uploading a file replaces the cover URL.</span></label>
         <input placeholder="Category" value={form.genre} onChange={(e) => updateField('genre', e.target.value)} className="finance-input" />
         <input placeholder="Reading source" value={form.reading_source} onChange={(e) => updateField('reading_source', e.target.value)} className="finance-input" />
         <select value={form.reading_type} onChange={(e) => updateField('reading_type', e.target.value)} className="finance-input"><option value="external_url">Read from external URL</option><option value="hosted">Read uploaded PDF</option></select>

@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 @layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, #root { min-width: 0; min-height: 100%; }
+  body { overflow-x: hidden; }
+  img, svg { max-width: 100%; }
   h1, h2, h3, .font-display { font-family: 'Playfair Display', Georgia, serif; }
   :focus-visible { outline: 2px solid #B78A3D; outline-offset: 2px; }
 }
@@ -15,7 +19,7 @@
     @apply inline-flex items-center justify-center gap-2 rounded-sm border border-ink/30 dark:border-ink-dark/30 px-5 py-3 font-medium hover:bg-ink/5 dark:hover:bg-white/5 transition-colors;
   }
   .card {
-    @apply border border-ink/10 dark:border-ink-dark/10 rounded-sm bg-white/60 dark:bg-white/5 p-6;
+    @apply border border-ink/10 dark:border-ink-dark/10 rounded-sm bg-white/60 dark:bg-white/5 p-4 md:p-6;
   }
 
   .lounge-logo {

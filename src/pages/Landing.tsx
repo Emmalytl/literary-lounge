@@ -7,9 +7,9 @@ export default function Landing() {
   return (
     <div>
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 text-center">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 md:pt-20 pb-12 md:pb-16 text-center">
         <img src={loungeLogo} alt="The Literary Lounge logo" className="lounge-logo mx-auto mb-8" />
-        <h1 className="font-display text-5xl md:text-6xl font-semibold leading-tight">
+        <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight">
           The Literary Lounge
         </h1>
         <p className="mt-3 text-lg md:text-xl text-gold font-medium">Read. Discuss. Connect.</p>
@@ -26,7 +26,7 @@ export default function Landing() {
       </section>
 
       {/* Current book */}
-      <section className="max-w-6xl mx-auto px-6 py-14 border-t border-ink/10 dark:border-ink-dark/10">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14 border-t border-ink/10 dark:border-ink-dark/10">
         <div className="grid md:grid-cols-2 gap-10 items-center">
           <div className="max-w-xs mx-auto md:mx-0 overflow-hidden rounded-sm bg-ink/5 dark:bg-white/5 shadow-xl">
             <img
@@ -49,7 +49,7 @@ export default function Landing() {
       </section>
 
       {/* What we do */}
-      <section className="max-w-6xl mx-auto px-6 py-14 border-t border-ink/10 dark:border-ink-dark/10">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14 border-t border-ink/10 dark:border-ink-dark/10">
         <div className="grid md:grid-cols-3 gap-8">
           {[
             { icon: BookOpen, title: 'Read', desc: 'Work through a shared book at your own pace, with progress and notes saved.' },
@@ -66,7 +66,7 @@ export default function Landing() {
       </section>
 
       {/* Upcoming event teaser */}
-      <section className="max-w-6xl mx-auto px-6 py-14 border-t border-ink/10 dark:border-ink-dark/10">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14 border-t border-ink/10 dark:border-ink-dark/10">
         <div className="card flex flex-col md:flex-row md:items-center gap-4 justify-between">
           <div className="flex items-start gap-3">
             <Calendar className="text-gold mt-1" size={22} />

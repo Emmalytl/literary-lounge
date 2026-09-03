@@ -30,7 +30,8 @@ const AdminExpenses = lazy(() => import('@/pages/admin/Expenses'))
 export default function App() {
   return (
     <ToastProvider>
-      <Routes>
+      <Suspense fallback={<div className="p-10 text-center opacity-60">Loading…</div>}>
+        <Routes>
         {/* Public */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Landing />} />
@@ -65,7 +66,8 @@ export default function App() {
         </Route>
 
         <Route path="*" element={<NotFound />} />
-      </Routes>
-    </ToastProvider>
-  )
+        </Routes>
+      </Suspense>
+  </ToastProvider>
+)
 }

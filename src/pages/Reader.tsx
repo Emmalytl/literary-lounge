@@ -56,13 +56,13 @@ export default function Reader() {
   return (
     <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
       <div className="bg-paper dark:bg-paper-dark min-h-screen">
-        <div className="max-w-prose mx-auto px-6 py-8">
+        <div className="max-w-prose mx-auto px-4 sm:px-6 py-8">
           <div className="flex items-center justify-between text-sm opacity-70 mb-6">
             <div>
               <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
               <p>{chapter ? chapter.title : 'No chapters yet'} · {percent}% complete</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <button onClick={() => setFontSize((f) => Math.max(14, f - 2))} aria-label="Smaller text"><Type size={14} /></button>
               <button onClick={() => setFontSize((f) => Math.min(28, f + 2))} aria-label="Larger text"><Type size={20} /></button>
               <button onClick={() => setReadingDark((d) => !d)} aria-label="Toggle reading mode">

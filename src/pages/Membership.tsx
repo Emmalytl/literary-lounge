@@ -17,7 +17,7 @@ export default function Membership() {
   }, [profile])
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       <h1 className="font-display text-3xl mb-2">Membership</h1>
       <p className="opacity-70 mb-8">
         Monthly dues are GHS 100, starting January 2027. Dues fund the Lounge — venue, refreshments, books, and events.

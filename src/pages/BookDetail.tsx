@@ -11,10 +11,10 @@ export default function BookDetail() {
     if (id) getBookById(id).then(setBook).catch(() => {})
   }, [id])
 
-  if (!book) return <div className="max-w-4xl mx-auto px-6 py-10 opacity-60">Loading…</div>
+  if (!book) return <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 opacity-60">Loading…</div>
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-10 grid md:grid-cols-3 gap-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 grid md:grid-cols-3 gap-8">
       <div className="aspect-[3/4] bg-ink/5 dark:bg-white/5 rounded-sm flex items-center justify-center">
         <BookOpen size={40} className="opacity-40" />
       </div>

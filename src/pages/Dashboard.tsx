@@ -39,7 +39,7 @@ export default function Dashboard() {
   }, [profile])
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
       <h1 className="font-display text-3xl">Welcome back, {profile?.full_name?.split(' ')[0] ?? 'reader'}</h1>
 
       <div className="mt-6 card">

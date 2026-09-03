@@ -18,7 +18,7 @@ export default function Library() {
   )
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
       <h1 className="font-display text-3xl mb-2">Library</h1>
       <p className="opacity-70 mb-6">Browse what the Lounge is reading.</p>
 

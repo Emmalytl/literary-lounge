@@ -21,7 +21,7 @@ export default function Login() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-6 py-16">
+    <div className="max-w-md mx-auto px-4 sm:px-6 py-12 sm:py-16">
       <h1 className="font-display text-3xl mb-2">Welcome back</h1>
       <p className="opacity-70 mb-8">Log in to continue reading and join the discussion.</p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -39,7 +39,7 @@ export default function Login() {
           {loading ? 'Logging in…' : 'Log in'}
         </button>
       </form>
-      <div className="mt-4 flex justify-between text-sm">
+      <div className="mt-4 flex flex-wrap justify-between gap-2 text-sm">
         <Link to="/reset-password" className="underline">Forgot password?</Link>
         <Link to="/register" className="underline">Join the Lounge</Link>
       </div>

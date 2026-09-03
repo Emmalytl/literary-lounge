@@ -18,7 +18,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-6 py-16">
+    <div className="max-w-md mx-auto px-4 sm:px-6 py-12 sm:py-16">
       <h1 className="font-display text-3xl mb-2">Reset your password</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-6">
         <label className="text-sm font-medium">

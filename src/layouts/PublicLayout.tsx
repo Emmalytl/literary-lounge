@@ -10,17 +10,17 @@ export function PublicLayout() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-ink/10 dark:border-ink-dark/10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-display text-xl font-semibold">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
+          <Link to="/" className="flex min-w-0 items-center gap-2 font-display text-lg sm:text-xl font-semibold">
             <img src="/WhatsApp%20Image%202026-09-02%20at%2016.47.35.jpeg" alt="" className="header-logo" />
-            The Literary Lounge
+            <span className="truncate">The Literary Lounge</span>
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm">
             <Link to="/library">Library</Link>
             <Link to="/events">Events</Link>
             <Link to="/membership">Membership</Link>
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <button onClick={toggle} aria-label="Toggle dark mode" className="p-2">
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -28,8 +28,8 @@ export function PublicLayout() {
               <Link to="/dashboard" className="btn-secondary !py-2 !px-4 text-sm">Dashboard</Link>
             ) : (
               <>
-                <Link to="/login" className="text-sm">Log in</Link>
-                <Link to="/register" className="btn-primary !py-2 !px-4 text-sm">Join the Lounge</Link>
+                <Link to="/login" className="hidden sm:inline text-sm">Log in</Link>
+                <Link to="/register" className="btn-primary !py-2 !px-3 sm:!px-4 text-sm">Join <span className="hidden sm:inline">the Lounge</span></Link>
               </>
             )}
           </div>

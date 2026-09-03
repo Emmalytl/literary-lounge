@@ -48,9 +48,9 @@ export function MemberLayout() {
         </div>
       </aside>
 
-      <div className="md:hidden flex items-center justify-between border-b border-ink/10 dark:border-ink-dark/10 px-4 py-3">
-        <Link to="/dashboard" className="font-display text-lg font-semibold">The Literary Lounge</Link>
-        <div className="flex items-center gap-3">
+      <div className="md:hidden flex items-center justify-between gap-3 border-b border-ink/10 dark:border-ink-dark/10 px-4 py-3">
+        <Link to="/dashboard" className="min-w-0 truncate font-display text-lg font-semibold">The Literary Lounge</Link>
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {profile?.role === 'admin' && (
             <Link to="/admin" className="flex items-center gap-1 text-sm">
               <ShieldCheck size={17} /> Admin
@@ -62,7 +62,7 @@ export function MemberLayout() {
         </div>
       </div>
 
-      <main className="flex-1 pb-20 md:pb-0">
+      <main className="min-w-0 flex-1 pb-20 md:pb-0">
         <Outlet />
       </main>
 

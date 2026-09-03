@@ -24,7 +24,7 @@ export default function Register() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-6 py-16">
+    <div className="max-w-md mx-auto px-4 sm:px-6 py-12 sm:py-16">
       <h1 className="font-display text-3xl mb-2">Join the Lounge</h1>
       <p className="opacity-70 mb-8">Read. Discuss. Connect. It starts with an account.</p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

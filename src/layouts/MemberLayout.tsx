@@ -18,7 +18,7 @@ export function MemberLayout() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col w-60 border-r border-ink/10 dark:border-ink-dark/10 p-6 gap-6">
+      <aside className="hidden md:flex md:flex-col w-60 shrink-0 border-r border-ink/10 dark:border-ink-dark/10 p-6 gap-6">
         <Link to="/dashboard" className="font-display text-lg font-semibold">The Literary Lounge</Link>
         <nav className="flex flex-col gap-1">
           {navItems.map(({ to, label, icon: Icon }) => (
@@ -67,7 +67,7 @@ export function MemberLayout() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-paper dark:bg-paper-dark border-t border-ink/10 dark:border-ink-dark/10 flex justify-around px-2 py-2 z-40">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-paper/95 dark:bg-paper-dark/95 backdrop-blur-md border-t border-ink/10 dark:border-ink-dark/10 flex justify-around px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] z-40">
         {navItems.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}

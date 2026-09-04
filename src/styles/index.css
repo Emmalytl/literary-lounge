@@ -4,22 +4,31 @@
 
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
-  html, body, #root { min-width: 0; min-height: 100%; }
-  body { overflow-x: hidden; }
+  html { min-width: 0; min-height: 100%; scroll-behavior: smooth; }
+  body, #root { min-width: 0; min-height: 100%; }
+  body { overflow-x: hidden; text-rendering: optimizeLegibility; }
   img, svg { max-width: 100%; }
+  button, input, select, textarea { font: inherit; }
+  button, a { -webkit-tap-highlight-color: transparent; }
+  a { transition: color 180ms ease, opacity 180ms ease; }
+  a:hover { color: #B78A3D; }
   h1, h2, h3, .font-display { font-family: 'Playfair Display', Georgia, serif; }
-  :focus-visible { outline: 2px solid #B78A3D; outline-offset: 2px; }
+  :focus-visible { outline: 3px solid #B78A3D; outline-offset: 3px; }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-sm bg-ink text-paper dark:bg-gold dark:text-paper-dark px-5 py-3 font-medium hover:opacity-90 transition-opacity;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-ink text-paper dark:bg-gold dark:text-paper-dark px-5 py-3 font-medium shadow-sm hover:-translate-y-0.5 hover:opacity-90 transition-all;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-sm border border-ink/30 dark:border-ink-dark/30 px-5 py-3 font-medium hover:bg-ink/5 dark:hover:bg-white/5 transition-colors;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-ink/25 dark:border-ink-dark/30 px-5 py-3 font-medium hover:-translate-y-0.5 hover:bg-ink/5 dark:hover:bg-white/5 transition-all;
   }
   .card {
-    @apply border border-ink/10 dark:border-ink-dark/10 rounded-sm bg-white/60 dark:bg-white/5 p-4 md:p-6;
+    @apply border border-ink/10 dark:border-ink-dark/10 rounded-sm bg-white/60 dark:bg-white/5 p-4 md:p-6 shadow-[0_8px_30px_rgba(27,42,74,0.04)] dark:shadow-none;
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+  .card:hover {
+    @apply border-gold/30 shadow-[0_12px_34px_rgba(27,42,74,0.08)] dark:shadow-none;
   }
 
   .lounge-logo {
@@ -36,7 +45,15 @@
   }
 
   .finance-input {
-    @apply w-full border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2;
+    @apply w-full min-h-11 border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2 transition-colors placeholder:opacity-50 focus:border-gold focus:ring-2 focus:ring-gold/20;
   }
 
+  .page-shell {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
+  }
+
+}
+
+@media (max-width: 639px) {
+  .btn-primary, .btn-secondary { padding-left: 1rem; padding-right: 1rem; }
 }

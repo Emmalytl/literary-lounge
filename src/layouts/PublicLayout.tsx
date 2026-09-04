@@ -34,6 +34,12 @@ export function PublicLayout() {
             )}
           </div>
         </div>
+        <nav className="md:hidden flex items-center justify-center gap-5 overflow-x-auto border-t border-ink/10 dark:border-ink-dark/10 px-4 py-2 text-xs font-medium">
+          <Link to="/library" className="whitespace-nowrap">Library</Link>
+          <Link to="/events" className="whitespace-nowrap">Events</Link>
+          <Link to="/membership" className="whitespace-nowrap">Membership</Link>
+          {!user && <Link to="/login" className="whitespace-nowrap">Log in</Link>}
+        </nav>
       </header>
       <main className="flex-1">
         <Outlet />

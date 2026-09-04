@@ -64,7 +64,7 @@ export default function Dashboard() {
                 <p className="text-xs mt-1 opacity-60">{progress.percent_complete}% complete</p>
               </div>
             </div>
-            <Link to="/reader" className="btn-primary">Continue Reading</Link>
+            <Link to={`/reader/${progress.book_id}`} className="btn-primary">Continue Reading</Link>
           </div>
         ) : (
           <p className="opacity-70">You haven't started a book yet. <Link to="/library" className="underline">Browse the library</Link>.</p>

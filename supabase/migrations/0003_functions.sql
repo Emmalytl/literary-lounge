@@ -123,6 +123,8 @@ begin
 end;
 $$;
 
+-- clear_payment: remove the payment details while keeping the member/month
+-- row available for a future payment entry.
 -- ---------------------------------------------------------------------
 -- record_expense: admin-only, also books the Lounge Fund debit.
 -- ---------------------------------------------------------------------

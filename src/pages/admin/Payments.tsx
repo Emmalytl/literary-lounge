@@ -1,4 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react'
+import { Eraser, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { downloadCsv, formatMoney } from '@/utils/csv'
@@ -53,6 +54,26 @@ export default function AdminPayments() {
     loadRecent()
   }
 
+  async function clearPayment(payment: any) {
+    if (!window.confirm(`Clear the payment for ${payment.memberName} for ${formatBillingMonth(payment.billing_month)}? The row will remain as unpaid.`)) return
+    const { error } = await supabase.rpc('clear_payment', { p_payment_id: payment.id })
+    if (error) { push(error.message, 'error'); return }
+    push('Payment cleared.', 'success')
+    loadRecent()
+  }
+
+  async function deletePayment(payment: any) {
+    if (!window.confirm(`Delete the payment for ${payment.memberName} for ${formatBillingMonth(payment.billing_month)}? This cannot be undone.`)) return
+    const { error } = await supabase.rpc('delete_payment', { p_payment_id: payment.id })
+    if (error) { push(error.message, 'error'); return }
+    push('Payment deleted.', 'success')
+    loadRecent()
+  }
+
+  function formatBillingMonth(value: string) {
+    return new Date(value).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+  }
+
   function exportPayments() {
     downloadCsv('literary-lounge-payments.csv',
       ['Payment date', 'Billing month', 'Member', 'Amount', 'Currency', 'Status', 'Method', 'Reference'],
@@ -99,7 +120,7 @@ export default function AdminPayments() {
         <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="text-left border-b border-ink/10 dark:border-ink-dark/10">
-              <th className="py-2">Member</th><th>Month</th><th>Amount</th><th>Status</th>
+              <th className="py-2">Member</th><th>Month</th><th>Amount</th><th>Status</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -109,6 +130,12 @@ export default function AdminPayments() {
                 <td>{new Date(p.billing_month).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</td>
                 <td>{formatMoney(p.amount, p.currency)}</td>
                 <td className="capitalize">{p.status}</td>
+                <td>
+                  <div className="flex gap-2">
+                    {p.status !== 'unpaid' && <button type="button" onClick={() => clearPayment(p)} aria-label={`Clear payment for ${p.memberName}`} title="Clear payment" className="btn-secondary !px-2 !py-1 text-xs"><Eraser size={14} /></button>}
+                    <button type="button" onClick={() => deletePayment(p)} aria-label={`Delete payment for ${p.memberName}`} title="Delete payment" className="btn-secondary !px-2 !py-1 text-xs text-clay"><Trash2 size={14} /></button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -20,19 +20,19 @@ export default function Membership() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       <h1 className="font-display text-3xl mb-2">Membership</h1>
       <p className="opacity-70 mb-8">
-        Monthly dues are GHS 100, starting January 2027. Dues fund the Lounge — venue, refreshments, books, and events.
+        Monthly dues details will be communicated soon. Dues help fund the Lounge — venue, refreshments, books, and events.
       </p>
 
       <div className="card mb-6">
         <p className="text-sm uppercase tracking-wide opacity-60 mb-1">Your status</p>
         <p className="font-display text-xl">
-          {payments.length === 0 ? 'No payments recorded yet' : `${payments.filter((p) => p.status === 'paid').length} of ${payments.length} months paid`}
+          {payments.length === 0 ? 'No monthly dues recorded yet' : `${payments.filter((p) => p.status === 'paid').length} of ${payments.length} months paid`}
         </p>
       </div>
 
-      <h2 className="font-display text-xl mb-3">Payment history</h2>
+      <h2 className="font-display text-xl mb-3">Monthly dues history</h2>
       {payments.length === 0 ? (
-        <p className="opacity-60 text-sm">Nothing recorded yet — dues begin January 2027.</p>
+        <p className="opacity-60 text-sm">Nothing recorded yet — monthly dues details will be shared soon.</p>
       ) : (
         <table className="w-full text-sm">
           <thead>

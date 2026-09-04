@@ -6,7 +6,7 @@ const items = [
   { to: '/admin/members', label: 'Members', icon: Users },
   { to: '/admin/books', label: 'Books', icon: Book },
   { to: '/admin/events', label: 'Events', icon: CalendarDays },
-  { to: '/admin/payments', label: 'Dues & Payments', icon: Wallet },
+  { to: '/admin/payments', label: 'Monthly Dues', icon: Wallet },
   { to: '/admin/expenses', label: 'Expenses', icon: Receipt }
 ]
 

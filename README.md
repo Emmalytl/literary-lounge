@@ -145,7 +145,7 @@ git push -u origin main
 
 ## Payment recording workflow
 
-Admin goes to **Admin → Dues & Payments**, picks the member, billing month,
+Admin goes to **Admin → Monthly Dues**, picks the member, billing month,
 amount, and method, and submits. This calls `record_payment()`, which:
 
 1. Inserts/updates the `membership_payments` row (one per member per month).

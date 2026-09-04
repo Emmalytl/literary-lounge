@@ -8,7 +8,7 @@ export default function AdminPayments() {
   const { push } = useToast()
   const [members, setMembers] = useState<any[]>([])
   const [memberId, setMemberId] = useState('')
-  const [amount, setAmount] = useState('100')
+  const [amount, setAmount] = useState('')
   const [billingMonth, setBillingMonth] = useState('')
   const [method, setMethod] = useState('Mobile Money')
   const [reference, setReference] = useState('')
@@ -49,24 +49,24 @@ export default function AdminPayments() {
       p_notes: null
     })
     if (error) { push(error.message, 'error'); return }
-    push('Payment recorded.', 'success')
+    push('Monthly dues recorded.', 'success')
     setReference('')
     loadRecent()
   }
 
   async function clearPayment(payment: any) {
-    if (!window.confirm(`Clear the payment for ${payment.memberName} for ${formatBillingMonth(payment.billing_month)}? The row will remain as unpaid.`)) return
+    if (!window.confirm(`Clear the monthly dues entry for ${payment.memberName} for ${formatBillingMonth(payment.billing_month)}? The row will remain unpaid.`)) return
     const { error } = await supabase.rpc('clear_payment', { p_payment_id: payment.id })
     if (error) { push(error.message, 'error'); return }
-    push('Payment cleared.', 'success')
+    push('Monthly dues entry cleared.', 'success')
     loadRecent()
   }
 
   async function deletePayment(payment: any) {
-    if (!window.confirm(`Delete the payment for ${payment.memberName} for ${formatBillingMonth(payment.billing_month)}? This cannot be undone.`)) return
+    if (!window.confirm(`Delete the monthly dues entry for ${payment.memberName} for ${formatBillingMonth(payment.billing_month)}? This cannot be undone.`)) return
     const { error } = await supabase.rpc('delete_payment', { p_payment_id: payment.id })
     if (error) { push(error.message, 'error'); return }
-    push('Payment deleted.', 'success')
+    push('Monthly dues entry deleted.', 'success')
     loadRecent()
   }
 
@@ -75,8 +75,8 @@ export default function AdminPayments() {
   }
 
   function exportPayments() {
-    downloadCsv('literary-lounge-payments.csv',
-      ['Payment date', 'Billing month', 'Member', 'Amount', 'Currency', 'Status', 'Method', 'Reference'],
+    downloadCsv('literary-lounge-monthly-dues.csv',
+      ['Dues date', 'Dues month', 'Member', 'Amount', 'Currency', 'Status', 'Method', 'Reference'],
       allPayments.map((payment) => [payment.payment_date, payment.billing_month, payment.memberName,
         Number(payment.amount).toFixed(2), payment.currency, payment.status, payment.payment_method, payment.reference_number]))
   }
@@ -86,10 +86,10 @@ export default function AdminPayments() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl mb-6">Dues & Payments</h1>
+      <h1 className="font-display text-3xl mb-6">Monthly Dues</h1>
 
       <form onSubmit={recordPayment} className="card mb-8 flex flex-col gap-3 max-w-lg">
-        <p className="font-medium">Record a payment</p>
+        <p className="font-medium">Record monthly dues</p>
         <select required value={memberId} onChange={(e) => setMemberId(e.target.value)}
           className="border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2">
           <option value="">Select member…</option>
@@ -98,7 +98,7 @@ export default function AdminPayments() {
         <input required type="month" value={billingMonth ? billingMonth.slice(0, 7) : ''}
           onChange={(e) => setBillingMonth(`${e.target.value}-01`)}
           className="border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2" />
-        <input required type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)}
+        <input required type="number" min="0" step="0.01" placeholder="Monthly dues amount (GHS)" value={amount} onChange={(e) => setAmount(e.target.value)}
           className="border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2" />
         <select value={method} onChange={(e) => setMethod(e.target.value)}
           className="border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2">
@@ -106,15 +106,15 @@ export default function AdminPayments() {
         </select>
         <input placeholder="Reference / transaction number" value={reference} onChange={(e) => setReference(e.target.value)}
           className="border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2" />
-        <button type="submit" className="btn-primary self-start">Record payment</button>
+        <button type="submit" className="btn-primary self-start">Record monthly dues</button>
       </form>
 
       <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
         <div>
-          <h2 className="font-display text-xl">Recent payments</h2>
-          <p className="text-sm opacity-60">{allPayments.length} recorded · Paid total {formatMoney(paidTotal)}</p>
+          <h2 className="font-display text-xl">Recent monthly dues</h2>
+          <p className="text-sm opacity-60">{allPayments.length} recorded · Collected total {formatMoney(paidTotal)}</p>
         </div>
-        <button type="button" onClick={exportPayments} className="btn-secondary">Export payments CSV</button>
+        <button type="button" onClick={exportPayments} className="btn-secondary">Export monthly dues CSV</button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[600px]">

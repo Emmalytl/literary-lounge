@@ -40,6 +40,7 @@ export default function Reader() {
 
   useEffect(() => {
     if (!book?.reading_file_path || !profile || !epubContainer.current) return
+    const memberId = profile.id
     let epubBook: any
     let rendition: any
     let cancelled = false
@@ -86,14 +87,14 @@ export default function Reader() {
           if (!cfi) return
           const percent = Math.min(100, Math.max(0, Math.round(epubBook.locations.percentageFromCfi(cfi) * 100)))
           setEpubPercent(percent)
-          updateReadingProgress(profile.id, book.id, percent).catch(() => {})
+          updateReadingProgress(memberId, book.id, percent).catch(() => {})
         })
 
         const savedProgress = await supabase
           .from('reading_progress')
           .select('percent_complete, status')
           .eq('book_id', book.id)
-          .eq('member_id', profile.id)
+          .eq('member_id', memberId)
           .maybeSingle()
         const savedPercent = Number(savedProgress.data?.percent_complete ?? 0)
         if (!cancelled) setCompleted(savedProgress.data?.status === 'completed')
@@ -160,12 +161,12 @@ export default function Reader() {
         <div className="bg-paper dark:bg-paper-dark min-h-screen">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
             <Link to="/library" className="mb-5 inline-flex items-center gap-2 text-sm opacity-70"><ArrowLeft size={16} /> Back to Library</Link>
-            <div className="flex items-center justify-between gap-4 text-sm opacity-70 mb-6">
-              <div>
+            <div className="flex flex-col items-start gap-3 text-sm opacity-70 mb-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
                 <p>{epubPercent}% complete</p>
               </div>
-              <div className="flex shrink-0 items-center gap-3">
+              <div className="flex shrink-0 self-end items-center gap-3 sm:self-auto">
                 <button onClick={() => setFontSize((f) => Math.max(14, f - 2))} aria-label="Smaller text"><Type size={14} /></button>
                 <button onClick={() => setFontSize((f) => Math.min(28, f + 2))} aria-label="Larger text"><Type size={20} /></button>
                 <button onClick={() => setReadingDark((d) => !d)} aria-label="Toggle reading mode">
@@ -204,12 +205,12 @@ export default function Reader() {
       <div className="bg-paper dark:bg-paper-dark min-h-screen">
         <div className="max-w-prose mx-auto px-4 sm:px-6 py-8">
           <Link to="/library" className="mb-5 inline-flex items-center gap-2 text-sm opacity-70"><ArrowLeft size={16} /> Back to Library</Link>
-          <div className="flex items-center justify-between text-sm opacity-70 mb-6">
-            <div>
+          <div className="flex flex-col items-start gap-3 text-sm opacity-70 mb-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
               <p>{chapter ? chapter.title : 'No chapters yet'} · {percent}% complete</p>
             </div>
-            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <div className="flex shrink-0 self-end items-center gap-2 sm:self-auto sm:gap-3">
               <button onClick={() => setFontSize((f) => Math.max(14, f - 2))} aria-label="Smaller text"><Type size={14} /></button>
               <button onClick={() => setFontSize((f) => Math.min(28, f + 2))} aria-label="Larger text"><Type size={20} /></button>
               <button onClick={() => setReadingDark((d) => !d)} aria-label="Toggle reading mode">

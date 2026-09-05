@@ -90,10 +90,19 @@ export default function Reader() {
   const [selectedText, setSelectedText] = useState('')
   const [highlightColor, setHighlightColor] = useState(HIGHLIGHT_COLORS[0].value)
   const [savingAnnotation, setSavingAnnotation] = useState(false)
+  const [editingAnnotation, setEditingAnnotation] = useState<{ type: 'bookmark' | 'highlight'; id: string; label: string } | null>(null)
   const epubContainer = useRef<HTMLDivElement>(null)
   // Holds the live epub.js "rendition" so page-turn buttons, the TOC
   // sidebar, and the font controls can all talk to the same book view.
   const renditionRef = useRef<any>(null)
+
+  function captureSelectedText(cfiRange: string, contents: any) {
+    const selection = contents?.window?.getSelection?.()
+    const text = selection?.toString?.().trim() ?? ''
+    if (!text || !cfiRange) return
+    setSelectedRange(cfiRange)
+    setSelectedText(text)
+  }
 
   useEffect(() => {
     if (!profile || !bookId) return
@@ -122,6 +131,7 @@ export default function Reader() {
     let epubBook: any
     let rendition: any
     let cancelled = false
+    const selectionCleanups: Array<() => void> = []
 
     async function loadEpub() {
       try {
@@ -183,12 +193,37 @@ export default function Reader() {
         })
 
         rendition.on('selected', (cfiRange: string, contents: any) => {
-          const text = contents?.window?.getSelection?.()?.toString?.().trim() ?? ''
-          if (text) {
-            setSelectedRange(cfiRange)
-            setSelectedText(text)
-          }
+          captureSelectedText(cfiRange, contents)
         })
+
+        // Mobile Safari/Chrome installed PWAs can keep the selection inside
+        // the EPUB iframe without emitting epub.js's rendition event. Listen
+        // directly to each rendered document and convert its native range to
+        // the CFI required by epub.js annotations.
+        const attachSelectionListeners = () => {
+          rendition.getContents().forEach((contents: any) => {
+            const document = contents.document
+            if (!document || document.body.dataset.readerSelectionBound) return
+            const captureNativeSelection = () => {
+              window.setTimeout(() => {
+                const selection = contents.window.getSelection()
+                if (!selection || selection.rangeCount === 0 || !selection.toString().trim()) return
+                const range = selection.getRangeAt(0)
+                const cfiRange = contents.cfiFromRange(range)
+                captureSelectedText(cfiRange, contents)
+              }, 0)
+            }
+            document.addEventListener('selectionchange', captureNativeSelection)
+            document.addEventListener('touchend', captureNativeSelection)
+            selectionCleanups.push(() => {
+              document.removeEventListener('selectionchange', captureNativeSelection)
+              document.removeEventListener('touchend', captureNativeSelection)
+            })
+            document.body.dataset.readerSelectionBound = 'true'
+          })
+        }
+        rendition.on('rendered', attachSelectionListeners)
+        attachSelectionListeners()
 
         const savedProgress = await supabase
           .from('reading_progress')
@@ -216,6 +251,7 @@ export default function Reader() {
     loadEpub()
     return () => {
       cancelled = true
+      selectionCleanups.forEach((cleanup) => cleanup())
       renditionRef.current = null
       rendition?.destroy()
       epubBook?.destroy()
@@ -269,22 +305,41 @@ export default function Reader() {
     renditionRef.current?.display(location)
   }
 
-  async function renameBookmark(bookmark: any) {
-    if (!profile) return
-    const label = window.prompt('Rename bookmark', bookmark.label || 'Saved page')?.trim()
-    if (!label || label === bookmark.label) return
-    const { error } = await supabase.from('bookmarks').update({ label }).eq('id', bookmark.id).eq('member_id', profile.id)
-    if (error) { push('Could not rename this bookmark.', 'error'); return }
-    setBookmarks((current) => current.map((item) => item.id === bookmark.id ? { ...item, label } : item))
+  function beginRename(type: 'bookmark' | 'highlight', item: any) {
+    setEditingAnnotation({ type, id: item.id, label: item.label || (type === 'bookmark' ? 'Saved page' : item.selected_text.slice(0, 48)) })
   }
 
-  async function renameHighlight(highlight: any) {
-    if (!profile) return
-    const label = window.prompt('Rename highlight', highlight.label || highlight.selected_text.slice(0, 48))?.trim()
-    if (!label || label === highlight.label) return
-    const { error } = await supabase.from('reading_highlights').update({ label }).eq('id', highlight.id).eq('member_id', profile.id)
-    if (error) { push('Could not rename this highlight. Apply migration 0016 first.', 'error'); return }
-    setHighlights((current) => current.map((item) => item.id === highlight.id ? { ...item, label } : item))
+  async function saveRename() {
+    if (!profile || !editingAnnotation || !editingAnnotation.label.trim()) return
+    const label = editingAnnotation.label.trim()
+    const table = editingAnnotation.type === 'bookmark' ? 'bookmarks' : 'reading_highlights'
+    const { error } = await supabase.from(table).update({ label }).eq('id', editingAnnotation.id).eq('member_id', profile.id)
+    if (error) { push(`Could not rename this ${editingAnnotation.type}.`, 'error'); return }
+    if (editingAnnotation.type === 'bookmark') {
+      setBookmarks((current) => current.map((item) => item.id === editingAnnotation.id ? { ...item, label } : item))
+    } else {
+      setHighlights((current) => current.map((item) => item.id === editingAnnotation.id ? { ...item, label } : item))
+    }
+    setEditingAnnotation(null)
+  }
+
+  async function deleteAnnotation(type: 'bookmark' | 'highlight', id: string) {
+    if (!profile || !window.confirm(`Delete this ${type}?`)) return
+    const table = type === 'bookmark' ? 'bookmarks' : 'reading_highlights'
+    const { error } = await supabase.from(table).delete().eq('id', id).eq('member_id', profile.id)
+    if (error) { push(`Could not delete this ${type}.`, 'error'); return }
+    if (type === 'bookmark') setBookmarks((current) => current.filter((item) => item.id !== id))
+    else {
+      renditionRef.current?.annotations.remove(id, 'highlight')
+      setHighlights((current) => current.filter((item) => item.id !== id))
+    }
+  }
+
+  function annotationActions(type: 'bookmark' | 'highlight', item: any) {
+    if (editingAnnotation?.type === type && editingAnnotation.id === item.id) {
+      return <div className="flex min-w-0 flex-1 items-center gap-1"><input autoFocus value={editingAnnotation.label} onChange={(event) => setEditingAnnotation({ ...editingAnnotation, label: event.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') saveRename(); if (event.key === 'Escape') setEditingAnnotation(null) }} className="finance-input !min-h-8 !px-2 !py-1 text-xs" /><button type="button" onClick={saveRename} aria-label="Save name" title="Save name" className="rounded-sm p-1.5 text-gold"><Check size={14} /></button></div>
+    }
+    return <><button type="button" onClick={() => beginRename(type, item)} aria-label={`Rename ${type}`} title={`Edit ${type}`} className="rounded-sm p-1.5 opacity-60 hover:bg-ink/5 hover:opacity-100 dark:hover:bg-white/5"><Pencil size={13} /></button><button type="button" onClick={() => deleteAnnotation(type, item.id)} aria-label={`Delete ${type}`} title={`Delete ${type}`} className="rounded-sm p-1.5 text-clay opacity-70 hover:bg-clay/10 hover:opacity-100"><X size={14} /></button></>
   }
 
   // Keep the live EPUB view in sync whenever font size or family changes.
@@ -376,6 +431,17 @@ export default function Reader() {
     </nav>
   )
 
+  const annotationLists = <>
+    {bookmarks.length > 0 && <div className="mt-6 border-t border-ink/10 pt-4 dark:border-ink-dark/10">
+      <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-60"><Bookmark size={14} /> Bookmarks</p>
+      <div className="flex flex-col gap-1">{bookmarks.map((bookmark) => <div key={bookmark.id} className="flex items-center gap-1"><button type="button" onClick={() => openBookmark(bookmark.location)} className="min-w-0 flex-1 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-ink/5 dark:hover:bg-white/5">{bookmark.label || 'Saved page'}</button>{annotationActions('bookmark', bookmark)}</div>)}</div>
+    </div>}
+    {highlights.length > 0 && <div className="mt-6 border-t border-ink/10 pt-4 dark:border-ink-dark/10">
+      <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-60"><Highlighter size={14} /> Highlights</p>
+      <div className="flex flex-col gap-2">{highlights.map((highlight) => <div key={highlight.id} className="flex items-start gap-1"><button type="button" onClick={() => openBookmark(highlight.location)} className="min-w-0 flex-1 rounded-sm border-l-4 px-2 py-1 text-left text-xs hover:bg-ink/5 dark:hover:bg-white/5" style={{ borderColor: highlight.color }}><span className="block font-medium">{highlight.label || 'Highlight'}</span><span className="opacity-75">&ldquo;{highlight.selected_text}&rdquo;</span></button>{annotationActions('highlight', highlight)}</div>)}</div>
+    </div>}
+  </>
+
   if (book.reading_file_path) {
     return (
       <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
@@ -389,14 +455,7 @@ export default function Reader() {
                 {toc.length === 0 && <p className="text-xs opacity-50">No chapter list found.</p>}
                 <TocList items={toc} activeHref={activeHref} onSelect={(href) => renditionRef.current?.display(href)} />
               </nav>
-              {bookmarks.length > 0 && <div className="mt-6 border-t border-ink/10 pt-4 dark:border-ink-dark/10">
-                <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-60"><Bookmark size={14} /> Bookmarks</p>
-                <div className="flex flex-col gap-1">{bookmarks.map((bookmark) => <div key={bookmark.id} className="flex items-center gap-1"><button type="button" onClick={() => openBookmark(bookmark.location)} className="min-w-0 flex-1 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-ink/5 dark:hover:bg-white/5">{bookmark.label || 'Saved page'}</button><button type="button" onClick={() => renameBookmark(bookmark)} aria-label={`Rename ${bookmark.label || 'bookmark'}`} title="Rename bookmark" className="rounded-sm p-1.5 opacity-60 hover:bg-ink/5 hover:opacity-100 dark:hover:bg-white/5"><Pencil size={13} /></button></div>)}</div>
-              </div>}
-              {highlights.length > 0 && <div className="mt-6 border-t border-ink/10 pt-4 dark:border-ink-dark/10">
-                <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-60"><Highlighter size={14} /> Highlights</p>
-                <div className="flex flex-col gap-2">{highlights.map((highlight) => <div key={highlight.id} className="flex items-start gap-1"><button type="button" onClick={() => openBookmark(highlight.location)} className="min-w-0 flex-1 rounded-sm border-l-4 px-2 py-1 text-left text-xs hover:bg-ink/5 dark:hover:bg-white/5" style={{ borderColor: highlight.color }}><span className="block font-medium">{highlight.label || 'Highlight'}</span><span className="opacity-75">&ldquo;{highlight.selected_text}&rdquo;</span></button><button type="button" onClick={() => renameHighlight(highlight)} aria-label={`Rename ${highlight.label || 'highlight'}`} title="Rename highlight" className="rounded-sm p-1.5 opacity-60 hover:bg-ink/5 hover:opacity-100 dark:hover:bg-white/5"><Pencil size={13} /></button></div>)}</div>
-              </div>}
+              {annotationLists}
             </aside>
 
             {/* Mobile chapter drawer -- still needs the List button, since a
@@ -408,6 +467,7 @@ export default function Reader() {
                   <button onClick={() => setTocOpen(false)} aria-label="Close chapter list"><X size={20} /></button>
                 </div>
                 {readerNav}
+                {annotationLists}
                 <nav className="flex flex-col gap-0.5">
                   <TocList
                     items={toc}
@@ -435,6 +495,13 @@ export default function Reader() {
               </div>
 
               {selectedText && <p className="mb-4 border-l-4 border-gold bg-gold/10 px-3 py-2 text-sm italic">&ldquo;{selectedText}&rdquo;</p>}
+
+              {selectedText && <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-ink/10 bg-paper/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-lg backdrop-blur-md dark:border-ink-dark/10 dark:bg-paper-dark/95 md:hidden">
+                <div className="flex min-w-0 flex-1 items-center gap-1">
+                  {HIGHLIGHT_COLORS.map((color) => <button key={color.value} type="button" onClick={() => setHighlightColor(color.value)} aria-label={`${color.label} highlight`} className={`h-6 w-6 shrink-0 rounded-full border-2 ${highlightColor === color.value ? 'border-ink dark:border-ink-dark' : 'border-transparent'}`} style={{ backgroundColor: color.value }} />)}
+                </div>
+                <button type="button" onClick={addHighlight} disabled={savingAnnotation} className="btn-primary !min-h-10 !px-3 !py-2 text-sm disabled:opacity-50"><Highlighter size={16} /> Save highlight</button>
+              </div>}
 
               {epubError ? (
                 <p className="text-center text-clay">{epubError}</p>
@@ -481,6 +548,7 @@ export default function Reader() {
                 </button>
               ))}
             </nav>
+            {annotationLists}
           </aside>
 
           {tocOpen && (
@@ -490,6 +558,7 @@ export default function Reader() {
                 <button onClick={() => setTocOpen(false)} aria-label="Close chapter list"><X size={20} /></button>
               </div>
               {readerNav}
+              {annotationLists}
               <nav className="flex flex-col gap-1">
                 {chapters.map((c, i) => (
                   <button

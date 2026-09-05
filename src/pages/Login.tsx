@@ -12,12 +12,19 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [confirmationExpired, setConfirmationExpired] = useState(false)
+  const [confirmationSent, setConfirmationSent] = useState(false)
 
   useEffect(() => {
+    const query = new URLSearchParams(window.location.search)
+    const confirmation = query.get('confirmation') === 'sent'
+    const registeredEmail = query.get('email')
+    if (confirmation) setConfirmationSent(true)
+    if (registeredEmail) setEmail(registeredEmail)
     const hash = new URLSearchParams(window.location.hash.slice(1))
     if (hash.get('error_code') === 'otp_expired' || hash.get('error') === 'access_denied') {
       setConfirmationExpired(true)
       window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+      setConfirmationSent(false)
       push('That confirmation link has expired or was already used. Request a new one below.', 'error')
     }
   }, [push])
@@ -38,6 +45,7 @@ export default function Login() {
     setLoading(false)
     if (error) { push(error, 'error'); return }
     setConfirmationExpired(false)
+    setConfirmationSent(true)
     push('A new confirmation link has been sent. Use the newest email only.', 'success')
   }
 
@@ -45,6 +53,10 @@ export default function Login() {
     <div className="max-w-md mx-auto px-4 sm:px-6 py-12 sm:py-16">
       <h1 className="font-display text-3xl mb-2">Welcome back</h1>
       <p className="opacity-70 mb-8">Log in to continue reading and join the discussion.</p>
+      {confirmationSent && <div className="mb-6 border border-gold/40 bg-gold/10 p-4 text-sm" role="status">
+        <p className="font-medium">Confirm your email to finish joining.</p>
+        <p className="mt-1 opacity-80">Check your inbox and spam folder, then click the newest confirmation link before logging in.</p>
+      </div>}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="text-sm font-medium">
           Email
@@ -58,7 +70,7 @@ export default function Login() {
         <button type="submit" disabled={loading} className="btn-primary mt-2">
           {loading ? 'Logging in…' : 'Log in'}
         </button>
-        {confirmationExpired && <button type="button" onClick={handleResendConfirmation} disabled={loading} className="btn-secondary">
+        {(confirmationSent || confirmationExpired) && <button type="button" onClick={handleResendConfirmation} disabled={loading} className="btn-secondary">
           Send a new confirmation email
         </button>}
       </form>

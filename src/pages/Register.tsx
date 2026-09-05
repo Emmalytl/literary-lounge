@@ -34,7 +34,7 @@ export default function Register() {
     setLoading(false)
     if (error) { push(error, 'error'); return }
     push('Check your email to verify your account.', 'success')
-    navigate('/login')
+    navigate(`/login?confirmation=sent&email=${encodeURIComponent(email.trim())}`)
   }
 
   return (

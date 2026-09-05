@@ -83,7 +83,9 @@ export default function AdminBooks() {
     const values = {
       title: form.title.trim(), author: form.author.trim(), description: form.description.trim() || null,
       cover_url: form.cover_url.trim() || null, genre: form.genre.trim() || null, reading_source: form.reading_source.trim() || null,
-      reading_url: null, audio_url: audioFile ? null : form.audio_url.trim() || null, reading_file_path: null, reading_type: 'hosted', status: form.status
+      reading_url: null, audio_url: audioFile ? null : form.audio_url.trim() || null,
+      reading_file_path: bookFile ? existingReadingFilePath : (existingEpubPath || existingReadingFilePath || null),
+      reading_type: 'hosted', status: form.status
     }
     const result = editingId
       ? await supabase.from('books').update(values).eq('id', editingId).select('id').single()

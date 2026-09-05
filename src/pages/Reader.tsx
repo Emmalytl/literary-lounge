@@ -126,8 +126,8 @@ export default function Reader() {
           savedPercent > 0 ? epubBook.locations.cfiFromPercentage(savedPercent / 100) : undefined
         )
         if (!cancelled) setEpubPercent(savedPercent)
-      } catch {
-        if (!cancelled) setEpubError('Could not open this EPUB book.')
+      } catch (error) {
+        if (!cancelled) setEpubError(error instanceof Error ? error.message : 'Could not open this EPUB book.')
       }
     }
 

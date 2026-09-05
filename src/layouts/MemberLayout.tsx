@@ -16,7 +16,7 @@ export function MemberLayout() {
   const location = useLocation()
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
+    <div className="min-h-[100dvh] flex flex-col md:flex-row">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col w-60 shrink-0 border-r border-ink/10 dark:border-ink-dark/10 p-6 gap-6">
         <Link to="/dashboard" className="font-display text-lg font-semibold">The Literary Lounge</Link>

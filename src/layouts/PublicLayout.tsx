@@ -8,7 +8,7 @@ export function PublicLayout() {
   const { theme, toggle } = useTheme()
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-[100dvh] flex flex-col">
       <header className="border-b border-ink/10 dark:border-ink-dark/10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
           <Link to="/" className="flex min-w-0 items-center gap-2 font-display text-lg sm:text-xl font-semibold">

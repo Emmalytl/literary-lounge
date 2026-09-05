@@ -2,6 +2,17 @@ import { FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useToast } from '@/components/Toast'
+import { PasswordField } from '@/components/PasswordField'
+
+function getPasswordStrength(password: string) {
+  return [
+    password.length >= 8,
+    /[a-z]/.test(password),
+    /[A-Z]/.test(password),
+    /\d/.test(password),
+    /[^A-Za-z0-9]/.test(password)
+  ].filter(Boolean).length
+}
 
 export default function Register() {
   const { signUp } = useAuth()
@@ -11,6 +22,9 @@ export default function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const passwordStrength = getPasswordStrength(password)
+  const strengthLabel = passwordStrength <= 2 ? 'Weak' : passwordStrength <= 4 ? 'Good' : 'Strong'
+  const strengthColor = passwordStrength <= 2 ? 'bg-clay' : passwordStrength <= 4 ? 'bg-gold' : 'bg-emerald-600'
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -40,8 +54,23 @@ export default function Register() {
         </label>
         <label className="text-sm font-medium">
           Password
-          <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2" />
+          <PasswordField required minLength={8} value={password} onChange={setPassword} describedBy="password-hint" />
+          <span id="password-hint" className="mt-2 block text-xs opacity-70">
+            Use 8+ characters with uppercase, lowercase, a number, and a symbol.
+          </span>
+          {password && (
+            <div className="mt-2" aria-live="polite">
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <span>Password strength</span>
+                <span className="font-medium">{strengthLabel}</span>
+              </div>
+              <div className="mt-1 grid grid-cols-5 gap-1" aria-hidden="true">
+                {[1, 2, 3, 4, 5].map((step) => (
+                  <span key={step} className={`h-1 rounded-full ${step <= passwordStrength ? strengthColor : 'bg-ink/10 dark:bg-white/10'}`} />
+                ))}
+              </div>
+            </div>
+          )}
         </label>
         <button type="submit" disabled={loading} className="btn-primary mt-2">
           {loading ? 'Creating account…' : 'Create account'}

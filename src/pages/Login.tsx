@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useToast } from '@/components/Toast'
+import { PasswordField } from '@/components/PasswordField'
 
 export default function Login() {
   const { signIn } = useAuth()
@@ -32,8 +33,7 @@ export default function Login() {
         </label>
         <label className="text-sm font-medium">
           Password
-          <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full border border-ink/20 dark:border-ink-dark/20 bg-transparent rounded-sm px-3 py-2" />
+          <PasswordField required value={password} onChange={setPassword} />
         </label>
         <button type="submit" disabled={loading} className="btn-primary mt-2">
           {loading ? 'Logging in…' : 'Log in'}

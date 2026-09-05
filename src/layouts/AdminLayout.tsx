@@ -13,7 +13,7 @@ const items = [
 export function AdminLayout() {
   const location = useLocation()
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
+    <div className="min-h-[100dvh] flex flex-col md:flex-row">
       <aside className="md:w-56 border-b md:border-b-0 md:border-r border-ink/10 dark:border-ink-dark/10 p-4 md:p-6">
         <Link to="/dashboard" className="flex items-center gap-2 text-sm opacity-70 mb-4"><ArrowLeft size={14} /> Back to app</Link>
         <p className="font-display text-lg mb-4">Admin</p>

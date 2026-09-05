@@ -157,8 +157,8 @@ export default function Reader() {
 
   if (book.reading_file_path) {
     return (
-      <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
-        <div className="bg-paper dark:bg-paper-dark min-h-screen">
+      <div className={readingDark ? 'dark min-h-[100dvh]' : 'min-h-[100dvh]'}>
+        <div className="bg-paper dark:bg-paper-dark min-h-[100dvh]">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
             <Link to="/library" className="mb-5 inline-flex items-center gap-2 text-sm opacity-70"><ArrowLeft size={16} /> Back to Library</Link>
             <div className="flex flex-col items-start gap-3 text-sm opacity-70 mb-6 sm:flex-row sm:items-center sm:justify-between">
@@ -201,8 +201,8 @@ export default function Reader() {
   const percent = chapters.length ? Math.round(((chapterIndex + 1) / chapters.length) * 100) : 0
 
   return (
-    <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
-      <div className="bg-paper dark:bg-paper-dark min-h-screen">
+    <div className={readingDark ? 'dark min-h-[100dvh]' : 'min-h-[100dvh]'}>
+      <div className="bg-paper dark:bg-paper-dark min-h-[100dvh]">
         <div className="max-w-prose mx-auto px-4 sm:px-6 py-8">
           <Link to="/library" className="mb-5 inline-flex items-center gap-2 text-sm opacity-70"><ArrowLeft size={16} /> Back to Library</Link>
           <div className="flex flex-col items-start gap-3 text-sm opacity-70 mb-6 sm:flex-row sm:items-center sm:justify-between">

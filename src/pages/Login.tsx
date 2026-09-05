@@ -1,16 +1,26 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useToast } from '@/components/Toast'
 import { PasswordField } from '@/components/PasswordField'
 
 export default function Login() {
-  const { signIn } = useAuth()
+  const { signIn, resendConfirmation } = useAuth()
   const { push } = useToast()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [confirmationExpired, setConfirmationExpired] = useState(false)
+
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.slice(1))
+    if (hash.get('error_code') === 'otp_expired' || hash.get('error') === 'access_denied') {
+      setConfirmationExpired(true)
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+      push('That confirmation link has expired or was already used. Request a new one below.', 'error')
+    }
+  }, [push])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -19,6 +29,16 @@ export default function Login() {
     setLoading(false)
     if (error) { push(error, 'error'); return }
     navigate('/dashboard')
+  }
+
+  async function handleResendConfirmation() {
+    if (!email.trim()) { push('Enter your email first.', 'error'); return }
+    setLoading(true)
+    const { error } = await resendConfirmation(email.trim())
+    setLoading(false)
+    if (error) { push(error, 'error'); return }
+    setConfirmationExpired(false)
+    push('A new confirmation link has been sent. Use the newest email only.', 'success')
   }
 
   return (
@@ -38,6 +58,9 @@ export default function Login() {
         <button type="submit" disabled={loading} className="btn-primary mt-2">
           {loading ? 'Logging in…' : 'Log in'}
         </button>
+        {confirmationExpired && <button type="button" onClick={handleResendConfirmation} disabled={loading} className="btn-secondary">
+          Send a new confirmation email
+        </button>}
       </form>
       <div className="mt-4 flex flex-wrap justify-between gap-2 text-sm">
         <Link to="/reset-password" className="underline">Forgot password?</Link>

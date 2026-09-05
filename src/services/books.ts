@@ -105,10 +105,21 @@ export async function upsertReadingProgress(memberId: string, bookId: string, ch
 
 export async function getReaderAnnotations(memberId: string, bookId: string) {
   const [bookmarks, highlights] = await Promise.all([
-    supabase.from('bookmarks').select('id, location, label, chapter_id, chapter_label, page_number').eq('member_id', memberId).eq('book_id', bookId).order('created_at'),
+    supabase.from('bookmarks').select('id, location, label, chapter_id').eq('member_id', memberId).eq('book_id', bookId).order('created_at'),
     supabase.from('reading_highlights').select('id, location, selected_text, color, label, chapter_id').eq('member_id', memberId).eq('book_id', bookId).order('created_at')
   ])
   if (bookmarks.error) throw bookmarks.error
   if (highlights.error) throw highlights.error
-  return { bookmarks: bookmarks.data ?? [], highlights: highlights.data ?? [] }
+  const { data: bookmarkMetadata, error: metadataError } = await supabase
+    .from('bookmarks')
+    .select('id, chapter_label, page_number')
+    .eq('member_id', memberId)
+    .eq('book_id', bookId)
+  return {
+    bookmarks: (bookmarks.data ?? []).map((bookmark) => ({
+      ...bookmark,
+      ...(metadataError ? {} : (bookmarkMetadata ?? []).find((item) => item.id === bookmark.id) ?? {})
+    })),
+    highlights: highlights.data ?? []
+  }
 }

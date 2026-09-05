@@ -31,16 +31,6 @@ function tocToItems(rawToc: any[]): TocItem[] {
   }))
 }
 
-function findTocLabel(items: TocItem[], href?: string): string {
-  if (!href) return ''
-  for (const item of items) {
-    if (item.href === href) return item.label
-    const nestedLabel = findTocLabel(item.subitems ?? [], href)
-    if (nestedLabel) return nestedLabel
-  }
-  return ''
-}
-
 function TocList({
   items,
   activeHref,
@@ -260,8 +250,8 @@ export default function Reader() {
           })
         })
         if (!cancelled) setEpubPercent(savedPercent)
-      } catch {
-        if (!cancelled) setEpubError('Could not open this EPUB book.')
+      } catch (error) {
+        if (!cancelled) setEpubError(error instanceof Error ? error.message : 'Could not open this EPUB book.')
       }
     }
 
@@ -383,11 +373,6 @@ export default function Reader() {
       })
     })
   }, [highlights])
-
-  useEffect(() => {
-    const label = findTocLabel(toc, activeHref)
-    if (label) setCurrentChapterLabel(label)
-  }, [toc, activeHref])
 
   useEffect(() => {
     const chapter = chapters[chapterIndex]

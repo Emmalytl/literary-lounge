@@ -26,12 +26,14 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // Only the app shell is precached. Protected book files are NEVER
+        // Only the app shell is precached. Lazy route chunks are fetched when
+        // needed, which keeps first launch fast on an installed device.
+        // Protected book files are NEVER
         // cached by the service worker directly — offline reading for
         // authorised chapters is handled explicitly in src/services/offline.ts
         // via authenticated IndexedDB storage tied to the member's session,
         // so access can be revoked server-side.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}']
+        globPatterns: ['**/index-*.js', '**/index-*.css', '**/*.{html,svg,png,ico}']
       }
     })
   ],

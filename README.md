@@ -23,6 +23,12 @@ This repo is a real, working foundation — not a mockup. Wired up end-to-end:
   ledger and audit log automatically)
 - PWA shell (installable, offline app shell) — see note below on offline reading
 
+Admin member deletion and role changes require migration `0014_admin_member_management.sql`
+and the `admin-delete-member` Edge Function. The welcome email flow uses the
+`send-welcome-email` Edge Function and requires `RESEND_API_KEY`,
+`WELCOME_EMAIL_FROM`, and `APP_URL` Supabase secrets. It sends once after the
+member's email is confirmed and includes the Lounge logo and welcome message.
+
 Deliberately left as documented next-steps (the schema already supports them,
 so no rebuild is needed to add them):
 

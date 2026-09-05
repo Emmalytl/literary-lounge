@@ -40,18 +40,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(data as Profile | null)
   }
 
+  function sendWelcomeEmail(user: User | null) {
+    if (!user?.email_confirmed_at) return
+    void supabase.functions.invoke('send-welcome-email').catch(() => {})
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
-      if (session?.user) loadProfile(session.user.id)
+      if (session?.user) {
+        loadProfile(session.user.id)
+        sendWelcomeEmail(session.user)
+      }
       setLoading(false)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
-      if (session?.user) loadProfile(session.user.id)
+      if (session?.user) {
+        loadProfile(session.user.id)
+        sendWelcomeEmail(session.user)
+      }
       else setProfile(null)
     })
 

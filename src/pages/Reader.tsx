@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Bookmark, Check, ChevronLeft, ChevronRight, Highlighter, Home, Library, Type, Sun, Moon, List, X, CaseSensitive } from 'lucide-react'
+import { Bookmark, Check, ChevronLeft, ChevronRight, Highlighter, Home, Library, Pencil, Type, Sun, Moon, List, X, CaseSensitive } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { getBookById, getBookFileUrl, getChapters, getChapterSignedUrl, getReaderAnnotations, upsertReadingProgress, updateReadingProgress } from '@/services/books'
 import { useToast } from '@/components/Toast'
@@ -249,8 +249,9 @@ export default function Reader() {
       book_id: bookId,
       location: selectedRange,
       selected_text: selectedText,
-      color: highlightColor
-    }).select('id, location, selected_text, color, chapter_id').single()
+      color: highlightColor,
+      label: selectedText.slice(0, 48)
+    }).select('id, location, selected_text, color, label, chapter_id').single()
     setSavingAnnotation(false)
     if (error) { push('Could not save this highlight. Apply migration 0015 first.', 'error'); return }
     renditionRef.current?.annotations.add('highlight', selectedRange, {}, undefined, 'saved-highlight', {
@@ -266,6 +267,24 @@ export default function Reader() {
 
   function openBookmark(location: string) {
     renditionRef.current?.display(location)
+  }
+
+  async function renameBookmark(bookmark: any) {
+    if (!profile) return
+    const label = window.prompt('Rename bookmark', bookmark.label || 'Saved page')?.trim()
+    if (!label || label === bookmark.label) return
+    const { error } = await supabase.from('bookmarks').update({ label }).eq('id', bookmark.id).eq('member_id', profile.id)
+    if (error) { push('Could not rename this bookmark.', 'error'); return }
+    setBookmarks((current) => current.map((item) => item.id === bookmark.id ? { ...item, label } : item))
+  }
+
+  async function renameHighlight(highlight: any) {
+    if (!profile) return
+    const label = window.prompt('Rename highlight', highlight.label || highlight.selected_text.slice(0, 48))?.trim()
+    if (!label || label === highlight.label) return
+    const { error } = await supabase.from('reading_highlights').update({ label }).eq('id', highlight.id).eq('member_id', profile.id)
+    if (error) { push('Could not rename this highlight. Apply migration 0016 first.', 'error'); return }
+    setHighlights((current) => current.map((item) => item.id === highlight.id ? { ...item, label } : item))
   }
 
   // Keep the live EPUB view in sync whenever font size or family changes.
@@ -372,11 +391,11 @@ export default function Reader() {
               </nav>
               {bookmarks.length > 0 && <div className="mt-6 border-t border-ink/10 pt-4 dark:border-ink-dark/10">
                 <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-60"><Bookmark size={14} /> Bookmarks</p>
-                <div className="flex flex-col gap-1">{bookmarks.map((bookmark) => <button key={bookmark.id} type="button" onClick={() => openBookmark(bookmark.location)} className="rounded-sm px-2 py-1.5 text-left text-sm hover:bg-ink/5 dark:hover:bg-white/5">{bookmark.label || 'Saved page'}</button>)}</div>
+                <div className="flex flex-col gap-1">{bookmarks.map((bookmark) => <div key={bookmark.id} className="flex items-center gap-1"><button type="button" onClick={() => openBookmark(bookmark.location)} className="min-w-0 flex-1 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-ink/5 dark:hover:bg-white/5">{bookmark.label || 'Saved page'}</button><button type="button" onClick={() => renameBookmark(bookmark)} aria-label={`Rename ${bookmark.label || 'bookmark'}`} title="Rename bookmark" className="rounded-sm p-1.5 opacity-60 hover:bg-ink/5 hover:opacity-100 dark:hover:bg-white/5"><Pencil size={13} /></button></div>)}</div>
               </div>}
               {highlights.length > 0 && <div className="mt-6 border-t border-ink/10 pt-4 dark:border-ink-dark/10">
                 <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-60"><Highlighter size={14} /> Highlights</p>
-                <div className="flex flex-col gap-2">{highlights.map((highlight) => <button key={highlight.id} type="button" onClick={() => openBookmark(highlight.location)} className="rounded-sm border-l-4 px-2 py-1 text-left text-xs hover:bg-ink/5 dark:hover:bg-white/5" style={{ borderColor: highlight.color }}>&ldquo;{highlight.selected_text}&rdquo;</button>)}</div>
+                <div className="flex flex-col gap-2">{highlights.map((highlight) => <div key={highlight.id} className="flex items-start gap-1"><button type="button" onClick={() => openBookmark(highlight.location)} className="min-w-0 flex-1 rounded-sm border-l-4 px-2 py-1 text-left text-xs hover:bg-ink/5 dark:hover:bg-white/5" style={{ borderColor: highlight.color }}><span className="block font-medium">{highlight.label || 'Highlight'}</span><span className="opacity-75">&ldquo;{highlight.selected_text}&rdquo;</span></button><button type="button" onClick={() => renameHighlight(highlight)} aria-label={`Rename ${highlight.label || 'highlight'}`} title="Rename highlight" className="rounded-sm p-1.5 opacity-60 hover:bg-ink/5 hover:opacity-100 dark:hover:bg-white/5"><Pencil size={13} /></button></div>)}</div>
               </div>}
             </aside>
 

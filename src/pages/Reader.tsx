@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Type, Sun, Moon, List, X, CaseSensitive } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
+import { Bookmark, Check, ChevronLeft, ChevronRight, Highlighter, Home, Library, Type, Sun, Moon, List, X, CaseSensitive } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
-import { getBookById, getBookFileUrl, getChapters, getChapterSignedUrl, upsertReadingProgress, updateReadingProgress } from '@/services/books'
+import { getBookById, getBookFileUrl, getChapters, getChapterSignedUrl, getReaderAnnotations, upsertReadingProgress, updateReadingProgress } from '@/services/books'
 import { useToast } from '@/components/Toast'
 import { supabase } from '@/lib/supabase'
 
 const FONT_FAMILIES = [
   { label: 'Serif', value: 'Georgia, "Playfair Display", serif' },
   { label: 'Sans', value: '"Inter", system-ui, sans-serif' }
+]
+
+const HIGHLIGHT_COLORS = [
+  { label: 'Sunshine', value: '#F6D365' },
+  { label: 'Mint', value: '#B8E6C1' },
+  { label: 'Sky', value: '#B9DDF5' },
+  { label: 'Rose', value: '#F2B8C6' }
 ]
 
 // EPUB tables of contents can be nested -- a "Part One" entry containing
@@ -76,10 +83,27 @@ export default function Reader() {
   // Sidebar shows by default on desktop; this only controls the mobile
   // full-screen drawer version (see fontControls' List button below).
   const [tocOpen, setTocOpen] = useState(false)
+  const [bookmarks, setBookmarks] = useState<any[]>([])
+  const [highlights, setHighlights] = useState<any[]>([])
+  const [currentLocation, setCurrentLocation] = useState('')
+  const [selectedRange, setSelectedRange] = useState('')
+  const [selectedText, setSelectedText] = useState('')
+  const [highlightColor, setHighlightColor] = useState(HIGHLIGHT_COLORS[0].value)
+  const [savingAnnotation, setSavingAnnotation] = useState(false)
   const epubContainer = useRef<HTMLDivElement>(null)
   // Holds the live epub.js "rendition" so page-turn buttons, the TOC
   // sidebar, and the font controls can all talk to the same book view.
   const renditionRef = useRef<any>(null)
+
+  useEffect(() => {
+    if (!profile || !bookId) return
+    getReaderAnnotations(profile.id, bookId)
+      .then(({ bookmarks: savedBookmarks, highlights: savedHighlights }) => {
+        setBookmarks(savedBookmarks)
+        setHighlights(savedHighlights)
+      })
+      .catch(() => push('Reader annotations are unavailable until the latest database migration is applied.', 'info'))
+  }, [bookId, profile])
 
   useEffect(() => {
     if (!bookId) return
@@ -148,6 +172,7 @@ export default function Reader() {
         rendition.on('relocated', (location: any) => {
           const cfi = location?.start?.cfi
           if (!cfi) return
+          setCurrentLocation(cfi)
           const percent = Math.min(100, Math.max(0, Math.round(epubBook.locations.percentageFromCfi(cfi) * 100)))
           setEpubPercent(percent)
           updateReadingProgress(profile.id, book.id, percent).catch(() => {})
@@ -155,6 +180,14 @@ export default function Reader() {
           // scrolls or turns pages, so it's clear where they are.
           const href = location?.start?.href
           if (href) setActiveHref(href)
+        })
+
+        rendition.on('selected', (cfiRange: string, contents: any) => {
+          const text = contents?.window?.getSelection?.()?.toString?.().trim() ?? ''
+          if (text) {
+            setSelectedRange(cfiRange)
+            setSelectedText(text)
+          }
         })
 
         const savedProgress = await supabase
@@ -167,6 +200,13 @@ export default function Reader() {
         await rendition.display(
           savedPercent > 0 ? epubBook.locations.cfiFromPercentage(savedPercent / 100) : undefined
         )
+        highlights.forEach((highlight) => {
+          rendition.annotations.add('highlight', highlight.location, {}, undefined, 'saved-highlight', {
+            fill: highlight.color,
+            'fill-opacity': '0.55',
+            'mix-blend-mode': 'multiply'
+          })
+        })
         if (!cancelled) setEpubPercent(savedPercent)
       } catch {
         if (!cancelled) setEpubError('Could not open this EPUB book.')
@@ -182,6 +222,52 @@ export default function Reader() {
     }
   }, [book, profile])
 
+  async function addBookmark() {
+    if (!profile || !bookId || !currentLocation || savingAnnotation) return
+    if (bookmarks.some((bookmark) => bookmark.location === currentLocation)) {
+      push('This page is already bookmarked.', 'info')
+      return
+    }
+    setSavingAnnotation(true)
+    const { data, error } = await supabase.from('bookmarks').insert({
+      member_id: profile.id,
+      book_id: bookId,
+      location: currentLocation,
+      label: activeHref ? activeHref.split('/').pop() : 'Saved page'
+    }).select('id, location, label, chapter_id').single()
+    setSavingAnnotation(false)
+    if (error) { push('Could not save this bookmark. Apply migration 0015 first.', 'error'); return }
+    setBookmarks((current) => [...current, data])
+    push('Bookmark saved.', 'success')
+  }
+
+  async function addHighlight() {
+    if (!profile || !bookId || !selectedRange || !selectedText || savingAnnotation) return
+    setSavingAnnotation(true)
+    const { data, error } = await supabase.from('reading_highlights').insert({
+      member_id: profile.id,
+      book_id: bookId,
+      location: selectedRange,
+      selected_text: selectedText,
+      color: highlightColor
+    }).select('id, location, selected_text, color, chapter_id').single()
+    setSavingAnnotation(false)
+    if (error) { push('Could not save this highlight. Apply migration 0015 first.', 'error'); return }
+    renditionRef.current?.annotations.add('highlight', selectedRange, {}, undefined, 'saved-highlight', {
+      fill: highlightColor,
+      'fill-opacity': '0.55',
+      'mix-blend-mode': 'multiply'
+    })
+    setHighlights((current) => [...current, data])
+    setSelectedRange('')
+    setSelectedText('')
+    push('Highlight saved permanently.', 'success')
+  }
+
+  function openBookmark(location: string) {
+    renditionRef.current?.display(location)
+  }
+
   // Keep the live EPUB view in sync whenever font size or family changes.
   useEffect(() => {
     if (!renditionRef.current) return
@@ -192,6 +278,18 @@ export default function Reader() {
     if (!renditionRef.current) return
     renditionRef.current.themes.font(FONT_FAMILIES[fontFamilyIndex].value)
   }, [fontFamilyIndex])
+
+  useEffect(() => {
+    const rendition = renditionRef.current
+    if (!rendition) return
+    highlights.forEach((highlight) => {
+      rendition.annotations.add('highlight', highlight.location, {}, undefined, 'saved-highlight', {
+        fill: highlight.color,
+        'fill-opacity': '0.55',
+        'mix-blend-mode': 'multiply'
+      })
+    })
+  }, [highlights])
 
   useEffect(() => {
     const chapter = chapters[chapterIndex]
@@ -248,6 +346,17 @@ export default function Reader() {
     </div>
   )
 
+  const readerNav = (
+    <nav className="mb-5 border-b border-ink/10 pb-4 dark:border-ink-dark/10">
+      <p className="mb-2 text-xs uppercase tracking-wide opacity-60">Lounge</p>
+      <div className="flex flex-col gap-0.5">
+        <Link to="/" className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-ink/5 dark:hover:bg-white/5"><Home size={16} /> Home</Link>
+        <Link to="/library" className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-ink/5 dark:hover:bg-white/5"><Library size={16} /> Library</Link>
+        <Link to="/dashboard" className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-ink/5 dark:hover:bg-white/5"><Check size={16} /> Dashboard</Link>
+      </div>
+    </nav>
+  )
+
   if (book.reading_file_path) {
     return (
       <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
@@ -255,11 +364,20 @@ export default function Reader() {
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex gap-6">
             {/* Chapter sidebar -- always visible on desktop, no click needed */}
             <aside className="hidden md:block w-64 shrink-0 border-r border-ink/10 dark:border-ink-dark/10 pr-4 max-h-[80vh] overflow-y-auto sticky top-6">
+              {readerNav}
               <p className="text-xs uppercase tracking-wide opacity-60 mb-2">Contents</p>
               <nav className="flex flex-col gap-0.5">
                 {toc.length === 0 && <p className="text-xs opacity-50">No chapter list found.</p>}
                 <TocList items={toc} activeHref={activeHref} onSelect={(href) => renditionRef.current?.display(href)} />
               </nav>
+              {bookmarks.length > 0 && <div className="mt-6 border-t border-ink/10 pt-4 dark:border-ink-dark/10">
+                <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-60"><Bookmark size={14} /> Bookmarks</p>
+                <div className="flex flex-col gap-1">{bookmarks.map((bookmark) => <button key={bookmark.id} type="button" onClick={() => openBookmark(bookmark.location)} className="rounded-sm px-2 py-1.5 text-left text-sm hover:bg-ink/5 dark:hover:bg-white/5">{bookmark.label || 'Saved page'}</button>)}</div>
+              </div>}
+              {highlights.length > 0 && <div className="mt-6 border-t border-ink/10 pt-4 dark:border-ink-dark/10">
+                <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-60"><Highlighter size={14} /> Highlights</p>
+                <div className="flex flex-col gap-2">{highlights.map((highlight) => <button key={highlight.id} type="button" onClick={() => openBookmark(highlight.location)} className="rounded-sm border-l-4 px-2 py-1 text-left text-xs hover:bg-ink/5 dark:hover:bg-white/5" style={{ borderColor: highlight.color }}>&ldquo;{highlight.selected_text}&rdquo;</button>)}</div>
+              </div>}
             </aside>
 
             {/* Mobile chapter drawer -- still needs the List button, since a
@@ -270,6 +388,7 @@ export default function Reader() {
                   <p className="font-display text-lg">Contents</p>
                   <button onClick={() => setTocOpen(false)} aria-label="Close chapter list"><X size={20} /></button>
                 </div>
+                {readerNav}
                 <nav className="flex flex-col gap-0.5">
                   <TocList
                     items={toc}
@@ -286,8 +405,17 @@ export default function Reader() {
                   <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
                   <p>{epubPercent}% complete</p>
                 </div>
-                {fontControls}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button type="button" onClick={addBookmark} disabled={!currentLocation || savingAnnotation} className="btn-secondary !min-h-9 !px-3 !py-1.5 text-xs disabled:opacity-40" title="Bookmark this page"><Bookmark size={15} /> Bookmark</button>
+                  <button type="button" onClick={addHighlight} disabled={!selectedRange || savingAnnotation} className="btn-secondary !min-h-9 !px-3 !py-1.5 text-xs disabled:opacity-40" title="Save selected text as a highlight"><Highlighter size={15} /> Highlight</button>
+                  {selectedText && <div className="flex items-center gap-1" aria-label="Highlight color">
+                    {HIGHLIGHT_COLORS.map((color) => <button key={color.value} type="button" onClick={() => setHighlightColor(color.value)} aria-label={`${color.label} highlight`} className={`h-5 w-5 rounded-full border-2 ${highlightColor === color.value ? 'border-ink dark:border-ink-dark' : 'border-transparent'}`} style={{ backgroundColor: color.value }} />)}
+                  </div>}
+                  {fontControls}
+                </div>
               </div>
+
+              {selectedText && <p className="mb-4 border-l-4 border-gold bg-gold/10 px-3 py-2 text-sm italic">&ldquo;{selectedText}&rdquo;</p>}
 
               {epubError ? (
                 <p className="text-center text-clay">{epubError}</p>
@@ -319,6 +447,7 @@ export default function Reader() {
       <div className="bg-paper dark:bg-paper-dark min-h-screen">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex gap-6">
           <aside className="hidden md:block w-64 shrink-0 border-r border-ink/10 dark:border-ink-dark/10 pr-4 max-h-[80vh] overflow-y-auto sticky top-6">
+            {readerNav}
             <p className="text-xs uppercase tracking-wide opacity-60 mb-2">Contents</p>
             <nav className="flex flex-col gap-0.5">
               {chapters.map((c, i) => (
@@ -341,6 +470,7 @@ export default function Reader() {
                 <p className="font-display text-lg">Chapters</p>
                 <button onClick={() => setTocOpen(false)} aria-label="Close chapter list"><X size={20} /></button>
               </div>
+              {readerNav}
               <nav className="flex flex-col gap-1">
                 {chapters.map((c, i) => (
                   <button

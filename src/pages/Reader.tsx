@@ -11,6 +11,52 @@ const FONT_FAMILIES = [
   { label: 'Sans', value: '"Inter", system-ui, sans-serif' }
 ]
 
+// EPUB tables of contents can be nested -- a "Part One" entry containing
+// several chapters underneath it. subitems holds that nesting; we keep it
+// so the sidebar can render Parts with their Chapters indented beneath.
+type TocItem = { label: string; href: string; subitems?: TocItem[] }
+
+function tocToItems(rawToc: any[]): TocItem[] {
+  return (rawToc ?? []).map((item: any) => ({
+    label: item.label?.trim() || 'Untitled',
+    href: item.href,
+    subitems: item.subitems?.length ? tocToItems(item.subitems) : undefined
+  }))
+}
+
+function TocList({
+  items,
+  activeHref,
+  onSelect,
+  depth = 0
+}: {
+  items: TocItem[]
+  activeHref?: string
+  onSelect: (href: string) => void
+  depth?: number
+}) {
+  return (
+    <>
+      {items.map((item, i) => (
+        <div key={i}>
+          <button
+            onClick={() => onSelect(item.href)}
+            style={{ paddingLeft: 8 + depth * 14 }}
+            className={`w-full text-left text-sm py-1.5 pr-2 rounded-sm hover:bg-ink/5 dark:hover:bg-white/5 ${
+              activeHref === item.href ? 'bg-ink/10 dark:bg-white/10 font-medium' : ''
+            } ${depth === 0 ? 'font-medium' : 'opacity-80'}`}
+          >
+            {item.label}
+          </button>
+          {item.subitems && (
+            <TocList items={item.subitems} activeHref={activeHref} onSelect={onSelect} depth={depth + 1} />
+          )}
+        </div>
+      ))}
+    </>
+  )
+}
+
 export default function Reader() {
   const { bookId } = useParams()
   const { profile } = useAuth()
@@ -25,7 +71,10 @@ export default function Reader() {
   const [loading, setLoading] = useState(true)
   const [epubPercent, setEpubPercent] = useState(0)
   const [epubError, setEpubError] = useState('')
-  const [toc, setToc] = useState<{ label: string; href: string }[]>([])
+  const [toc, setToc] = useState<TocItem[]>([])
+  const [activeHref, setActiveHref] = useState<string | undefined>()
+  // Sidebar shows by default on desktop; this only controls the mobile
+  // full-screen drawer version (see fontControls' List button below).
   const [tocOpen, setTocOpen] = useState(false)
   const epubContainer = useRef<HTMLDivElement>(null)
   // Holds the live epub.js "rendition" so page-turn buttons, the TOC
@@ -64,10 +113,11 @@ export default function Reader() {
         await epubBook.ready
         if (cancelled || !epubContainer.current) return
 
-        // Table of contents, for the left-hand chapter panel.
+        // Table of contents, for the left-hand panel -- kept nested so
+        // Parts and their Chapters underneath both show, not just a flat list.
         const nav = await epubBook.loaded.navigation
         if (!cancelled) {
-          setToc((nav?.toc ?? []).map((item: any) => ({ label: item.label?.trim() || 'Untitled', href: item.href })))
+          setToc(tocToItems(nav?.toc ?? []))
         }
 
         // The location scan below makes "percent complete" accurate, but it
@@ -101,6 +151,10 @@ export default function Reader() {
           const percent = Math.min(100, Math.max(0, Math.round(epubBook.locations.percentageFromCfi(cfi) * 100)))
           setEpubPercent(percent)
           updateReadingProgress(profile.id, book.id, percent).catch(() => {})
+          // Highlight the current chapter/part in the sidebar as the reader
+          // scrolls or turns pages, so it's clear where they are.
+          const href = location?.start?.href
+          if (href) setActiveHref(href)
         })
 
         const savedProgress = await supabase
@@ -166,10 +220,12 @@ export default function Reader() {
 
   const fontControls = (
     <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+      {/* Only needed on phones -- desktop shows the contents sidebar
+          permanently, so this button only renders there via CSS. */}
       <button
         onClick={() => setTocOpen((o) => !o)}
         aria-label="Table of contents"
-        className={tocOpen ? 'text-gold' : ''}
+        className={`md:hidden ${tocOpen ? 'text-gold' : ''}`}
       >
         <List size={18} />
       </button>
@@ -197,42 +253,29 @@ export default function Reader() {
       <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
         <div className="bg-paper dark:bg-paper-dark min-h-screen">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex gap-6">
-            {/* Chapter sidebar */}
-            {tocOpen && (
-              <aside className="hidden md:block w-56 shrink-0 border-r border-ink/10 dark:border-ink-dark/10 pr-4 max-h-[80vh] overflow-y-auto">
-                <p className="text-xs uppercase tracking-wide opacity-60 mb-2">Chapters</p>
-                <nav className="flex flex-col gap-1">
-                  {toc.length === 0 && <p className="text-xs opacity-50">No chapter list found.</p>}
-                  {toc.map((item, i) => (
-                    <button
-                      key={i}
-                      onClick={() => renditionRef.current?.display(item.href)}
-                      className="text-left text-sm px-2 py-1.5 rounded-sm hover:bg-ink/5 dark:hover:bg-white/5"
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </nav>
-              </aside>
-            )}
+            {/* Chapter sidebar -- always visible on desktop, no click needed */}
+            <aside className="hidden md:block w-64 shrink-0 border-r border-ink/10 dark:border-ink-dark/10 pr-4 max-h-[80vh] overflow-y-auto sticky top-6">
+              <p className="text-xs uppercase tracking-wide opacity-60 mb-2">Contents</p>
+              <nav className="flex flex-col gap-0.5">
+                {toc.length === 0 && <p className="text-xs opacity-50">No chapter list found.</p>}
+                <TocList items={toc} activeHref={activeHref} onSelect={(href) => renditionRef.current?.display(href)} />
+              </nav>
+            </aside>
 
-            {/* Mobile chapter drawer */}
+            {/* Mobile chapter drawer -- still needs the List button, since a
+                permanent sidebar doesn't fit a phone screen */}
             {tocOpen && (
               <div className="md:hidden fixed inset-0 z-50 bg-paper dark:bg-paper-dark p-4 overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="font-display text-lg">Chapters</p>
+                  <p className="font-display text-lg">Contents</p>
                   <button onClick={() => setTocOpen(false)} aria-label="Close chapter list"><X size={20} /></button>
                 </div>
-                <nav className="flex flex-col gap-1">
-                  {toc.map((item, i) => (
-                    <button
-                      key={i}
-                      onClick={() => { renditionRef.current?.display(item.href); setTocOpen(false) }}
-                      className="text-left text-sm px-2 py-2 rounded-sm hover:bg-ink/5 dark:hover:bg-white/5"
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+                <nav className="flex flex-col gap-0.5">
+                  <TocList
+                    items={toc}
+                    activeHref={activeHref}
+                    onSelect={(href) => { renditionRef.current?.display(href); setTocOpen(false) }}
+                  />
                 </nav>
               </div>
             )}
@@ -275,24 +318,22 @@ export default function Reader() {
     <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
       <div className="bg-paper dark:bg-paper-dark min-h-screen">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex gap-6">
-          {tocOpen && (
-            <aside className="hidden md:block w-56 shrink-0 border-r border-ink/10 dark:border-ink-dark/10 pr-4 max-h-[80vh] overflow-y-auto">
-              <p className="text-xs uppercase tracking-wide opacity-60 mb-2">Chapters</p>
-              <nav className="flex flex-col gap-1">
-                {chapters.map((c, i) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setChapterIndex(i)}
-                    className={`text-left text-sm px-2 py-1.5 rounded-sm hover:bg-ink/5 dark:hover:bg-white/5 ${
-                      i === chapterIndex ? 'bg-ink/10 dark:bg-white/10 font-medium' : ''
-                    }`}
-                  >
-                    {c.title}
-                  </button>
-                ))}
-              </nav>
-            </aside>
-          )}
+          <aside className="hidden md:block w-64 shrink-0 border-r border-ink/10 dark:border-ink-dark/10 pr-4 max-h-[80vh] overflow-y-auto sticky top-6">
+            <p className="text-xs uppercase tracking-wide opacity-60 mb-2">Contents</p>
+            <nav className="flex flex-col gap-0.5">
+              {chapters.map((c, i) => (
+                <button
+                  key={c.id}
+                  onClick={() => setChapterIndex(i)}
+                  className={`text-left text-sm px-2 py-1.5 rounded-sm hover:bg-ink/5 dark:hover:bg-white/5 ${
+                    i === chapterIndex ? 'bg-ink/10 dark:bg-white/10 font-medium' : ''
+                  }`}
+                >
+                  {c.title}
+                </button>
+              ))}
+            </nav>
+          </aside>
 
           {tocOpen && (
             <div className="md:hidden fixed inset-0 z-50 bg-paper dark:bg-paper-dark p-4 overflow-y-auto">

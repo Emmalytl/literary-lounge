@@ -19,6 +19,8 @@ export default defineConfig({
         theme_color: '#1B2A4A',
         background_color: '#F6F1E7',
         display: 'standalone',
+        id: '/',
+        scope: '/',
         start_url: '/',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
@@ -33,7 +35,9 @@ export default defineConfig({
         // authorised chapters is handled explicitly in src/services/offline.ts
         // via authenticated IndexedDB storage tied to the member's session,
         // so access can be revoked server-side.
-        globPatterns: ['**/index-*.js', '**/index-*.css', '**/*.{html,svg,png,ico}']
+        globPatterns: ['**/index-*.js', '**/index-*.css', '**/*.{html,svg,png,ico}'],
+        clientsClaim: true,
+        skipWaiting: true
       }
     })
   ],

@@ -206,18 +206,26 @@ export default function Reader() {
             if (!document || document.body.dataset.readerSelectionBound) return
             const captureNativeSelection = () => {
               window.setTimeout(() => {
-                const selection = contents.window.getSelection()
-                if (!selection || selection.rangeCount === 0 || !selection.toString().trim()) return
-                const range = selection.getRangeAt(0)
-                const cfiRange = contents.cfiFromRange(range)
-                captureSelectedText(cfiRange, contents)
+                try {
+                  const selection = contents.window.getSelection()
+                  if (!selection || selection.rangeCount === 0 || !selection.toString().trim()) return
+                  const range = selection.getRangeAt(0)
+                  const cfiRange = contents.cfiFromRange(range)
+                  captureSelectedText(cfiRange, contents)
+                } catch {
+                  // The selection can disappear while the EPUB page rerenders.
+                }
               }, 0)
             }
             document.addEventListener('selectionchange', captureNativeSelection)
             document.addEventListener('touchend', captureNativeSelection)
+            document.addEventListener('pointerup', captureNativeSelection)
+            document.addEventListener('mouseup', captureNativeSelection)
             selectionCleanups.push(() => {
               document.removeEventListener('selectionchange', captureNativeSelection)
               document.removeEventListener('touchend', captureNativeSelection)
+              document.removeEventListener('pointerup', captureNativeSelection)
+              document.removeEventListener('mouseup', captureNativeSelection)
             })
             document.body.dataset.readerSelectionBound = 'true'
           })
@@ -284,6 +292,11 @@ export default function Reader() {
 
   async function addHighlight() {
     if (!profile || !bookId || !selectedRange || !selectedText || savingAnnotation) return
+    const label = window.prompt('Name this highlight', '')?.trim()
+    if (!label) {
+      push('Enter a name to save the highlight.', 'info')
+      return
+    }
     setSavingAnnotation(true)
     const { data, error } = await supabase.from('reading_highlights').insert({
       member_id: profile.id,
@@ -291,7 +304,7 @@ export default function Reader() {
       location: selectedRange,
       selected_text: selectedText,
       color: highlightColor,
-      label: selectedText.slice(0, 48)
+      label
     }).select('id, location, selected_text, color, label, chapter_id').single()
     setSavingAnnotation(false)
     if (error) { push('Could not save this highlight. Apply migration 0015 first.', 'error'); return }

@@ -28,7 +28,14 @@ export async function recordBookCompletion(bookId: string) {
 
 export async function getBookFileUrl(bookId: string) {
   const { data, error } = await supabase.functions.invoke('get-book-file-url', { body: { bookId, mediaType: 'book' } })
-  if (error) throw new Error(`The book access function is unavailable. Deploy get-book-file-url in Supabase. (${error.message})`)
+  if (error) {
+    let detail = error.message
+    try {
+      const body = await (error as any).context?.json()
+      if (body?.error) detail = body.error
+    } catch { /* The response may not expose a JSON body. */ }
+    throw new Error(`Could not open this book: ${detail}`)
+  }
   if (!data?.url) throw new Error(data?.error ?? 'No signed EPUB URL was returned')
   return data as { url: string; expiresIn: number }
 }

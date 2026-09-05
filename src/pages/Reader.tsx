@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, ChevronLeft, ChevronRight, Type, Sun, Moon } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, List, Sun, Moon } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { getBookById, getBookFileUrl, getChapters, getChapterSignedUrl, recordBookCompletion, upsertReadingProgress, updateReadingProgress } from '@/services/books'
 import { useToast } from '@/components/Toast'
@@ -13,8 +13,10 @@ export default function Reader() {
   const [book, setBook] = useState<any>(null)
   const [chapters, setChapters] = useState<any[]>([])
   const [chapterIndex, setChapterIndex] = useState(0)
+  const [chapterSelectionReady, setChapterSelectionReady] = useState(false)
   const [content, setContent] = useState<string>('')
   const [fontSize, setFontSize] = useState(18)
+  const [fontFamily, setFontFamily] = useState('Georgia, serif')
   const [readingDark, setReadingDark] = useState(false)
   const [loading, setLoading] = useState(true)
   const [epubPercent, setEpubPercent] = useState(0)
@@ -28,15 +30,35 @@ export default function Reader() {
 
   useEffect(() => {
     if (!bookId) return
+    setChapterSelectionReady(false)
     getBookById(bookId)
       .then(async (b) => {
         setBook(b)
         if (b.reading_file_path) return
-        setChapters(await getChapters(bookId))
+        const loadedChapters = await getChapters(bookId)
+        setChapters(loadedChapters)
+        if (profile && loadedChapters.length) {
+          const { data: savedProgress } = await supabase
+            .from('reading_progress')
+            .select('current_chapter_id')
+            .eq('book_id', bookId)
+            .eq('member_id', profile.id)
+            .maybeSingle()
+          const savedIndex = loadedChapters.findIndex((item) => item.id === savedProgress?.current_chapter_id)
+          if (savedIndex >= 0) setChapterIndex(savedIndex)
+        }
+        setChapterSelectionReady(true)
       })
       .catch(() => push('Could not load this book.', 'error'))
       .finally(() => setLoading(false))
-  }, [bookId])
+  }, [bookId, profile])
+
+  useEffect(() => {
+    const rendition = renditionRef.current
+    if (!rendition) return
+    rendition.themes.fontSize(`${fontSize}px`)
+    rendition.themes.fontFamily(fontFamily)
+  }, [fontSize, fontFamily])
 
   useEffect(() => {
     if (!book?.reading_file_path || !profile || !epubContainer.current) return
@@ -81,6 +103,8 @@ export default function Reader() {
 
         rendition = epubBook.renderTo(epubContainer.current, { width: '100%', height: '70vh' })
         renditionRef.current = rendition
+        rendition.themes.fontSize(`${fontSize}px`)
+        rendition.themes.fontFamily(fontFamily)
 
         rendition.on('relocated', (location: any) => {
           const cfi = location?.start?.cfi
@@ -131,6 +155,7 @@ export default function Reader() {
   }
 
   useEffect(() => {
+    if (!chapterSelectionReady) return
     const chapter = chapters[chapterIndex]
     if (!chapter) return
     setContent('Loading chapter…')
@@ -150,7 +175,7 @@ export default function Reader() {
       const percent = Math.round(((chapterIndex + 1) / chapters.length) * 100)
       upsertReadingProgress(profile.id, bookId, chapter.id, percent).catch(() => {})
     }
-  }, [chapterIndex, chapters])
+  }, [chapterIndex, chapters, chapterSelectionReady])
 
   if (loading) return <div className="p-10 text-center opacity-60">Loading…</div>
   if (!book) return <div className="p-10 text-center opacity-60">Book not found.</div>
@@ -166,9 +191,18 @@ export default function Reader() {
                 <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
                 <p>{epubPercent}% complete</p>
               </div>
-              <div className="flex shrink-0 self-end items-center gap-3 sm:self-auto">
-                <button onClick={() => setFontSize((f) => Math.max(14, f - 2))} aria-label="Smaller text"><Type size={14} /></button>
-                <button onClick={() => setFontSize((f) => Math.min(28, f + 2))} aria-label="Larger text"><Type size={20} /></button>
+              <div className="flex shrink-0 self-end flex-wrap items-center justify-end gap-2 sm:self-auto">
+                <label className="sr-only" htmlFor="reader-font">Font</label>
+                <select id="reader-font" value={fontFamily} onChange={(event) => setFontFamily(event.target.value)} className="border border-ink/20 bg-transparent px-2 py-1 text-sm dark:border-ink-dark/20">
+                  <option value="Georgia, serif">Georgia</option>
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="Verdana, sans-serif">Verdana</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
+                </select>
+                <label className="sr-only" htmlFor="reader-font-size">Font size</label>
+                <select id="reader-font-size" value={fontSize} onChange={(event) => setFontSize(Number(event.target.value))} className="border border-ink/20 bg-transparent px-2 py-1 text-sm dark:border-ink-dark/20">
+                  {[14, 16, 18, 20, 22, 24, 26, 28].map((size) => <option key={size} value={size}>{size}px</option>)}
+                </select>
                 <button onClick={() => setReadingDark((d) => !d)} aria-label="Toggle reading mode">
                   {readingDark ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
@@ -203,23 +237,41 @@ export default function Reader() {
   return (
     <div className={readingDark ? 'dark min-h-[100dvh]' : 'min-h-[100dvh]'}>
       <div className="bg-paper dark:bg-paper-dark min-h-[100dvh]">
-        <div className="max-w-prose mx-auto px-4 sm:px-6 py-8">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[15rem_minmax(0,68ch)]">
+          <aside className="border-b border-ink/10 pb-5 dark:border-ink-dark/10 lg:border-b-0 lg:border-r lg:pr-5">
+            <div className="mb-3 flex items-center gap-2 text-sm font-medium"><List size={16} /> Chapters</div>
+            <nav className="max-h-60 space-y-1 overflow-y-auto lg:sticky lg:top-6 lg:max-h-[calc(100dvh-8rem)]">
+              {chapters.map((item, index) => <button key={item.id} type="button" onClick={() => setChapterIndex(index)} className={`w-full rounded-sm px-3 py-2 text-left text-sm transition-colors ${index === chapterIndex ? 'bg-ink text-paper dark:bg-gold dark:text-paper-dark' : 'hover:bg-ink/5 dark:hover:bg-white/5'}`}>
+                <span className="mr-2 opacity-60">{item.chapter_number}.</span>{item.title}
+              </button>)}
+            </nav>
+          </aside>
+          <main className="min-w-0">
           <Link to="/library" className="mb-5 inline-flex items-center gap-2 text-sm opacity-70"><ArrowLeft size={16} /> Back to Library</Link>
           <div className="flex flex-col items-start gap-3 text-sm opacity-70 mb-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
               <p>{chapter ? chapter.title : 'No chapters yet'} · {percent}% complete</p>
             </div>
-            <div className="flex shrink-0 self-end items-center gap-2 sm:self-auto sm:gap-3">
-              <button onClick={() => setFontSize((f) => Math.max(14, f - 2))} aria-label="Smaller text"><Type size={14} /></button>
-              <button onClick={() => setFontSize((f) => Math.min(28, f + 2))} aria-label="Larger text"><Type size={20} /></button>
+            <div className="flex shrink-0 self-end flex-wrap items-center justify-end gap-2 sm:self-auto sm:gap-3">
+              <label className="sr-only" htmlFor="chapter-font">Font</label>
+              <select id="chapter-font" value={fontFamily} onChange={(event) => setFontFamily(event.target.value)} className="border border-ink/20 bg-transparent px-2 py-1 text-sm dark:border-ink-dark/20">
+                <option value="Georgia, serif">Georgia</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Verdana, sans-serif">Verdana</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+              </select>
+              <label className="sr-only" htmlFor="chapter-font-size">Font size</label>
+              <select id="chapter-font-size" value={fontSize} onChange={(event) => setFontSize(Number(event.target.value))} className="border border-ink/20 bg-transparent px-2 py-1 text-sm dark:border-ink-dark/20">
+                {[14, 16, 18, 20, 22, 24, 26, 28].map((size) => <option key={size} value={size}>{size}px</option>)}
+              </select>
               <button onClick={() => setReadingDark((d) => !d)} aria-label="Toggle reading mode">
                 {readingDark ? <Sun size={18} /> : <Moon size={18} />}
               </button>
             </div>
           </div>
 
-          <div style={{ fontSize }} className="leading-relaxed whitespace-pre-wrap">
+          <div style={{ fontSize, fontFamily }} className="leading-relaxed whitespace-pre-wrap">
             {content}
           </div>
 
@@ -241,6 +293,7 @@ export default function Reader() {
               Next <ChevronRight size={16} />
             </button>
           </div>
+          </main>
         </div>
       </div>
     </div>

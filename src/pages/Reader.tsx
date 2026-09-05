@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, ChevronLeft, ChevronRight, List, Sun, Moon } from 'lucide-react'
+import { useParams } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, Type, Sun, Moon, List, X, CaseSensitive } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
-import { getBookById, getBookFileUrl, getChapters, getChapterSignedUrl, recordBookCompletion, upsertReadingProgress, updateReadingProgress } from '@/services/books'
+import { getBookById, getBookFileUrl, getChapters, getChapterSignedUrl, upsertReadingProgress, updateReadingProgress } from '@/services/books'
 import { useToast } from '@/components/Toast'
 import { supabase } from '@/lib/supabase'
+
+const FONT_FAMILIES = [
+  { label: 'Serif', value: 'Georgia, "Playfair Display", serif' },
+  { label: 'Sans', value: '"Inter", system-ui, sans-serif' }
+]
 
 export default function Reader() {
   const { bookId } = useParams()
@@ -13,56 +18,34 @@ export default function Reader() {
   const [book, setBook] = useState<any>(null)
   const [chapters, setChapters] = useState<any[]>([])
   const [chapterIndex, setChapterIndex] = useState(0)
-  const [chapterSelectionReady, setChapterSelectionReady] = useState(false)
   const [content, setContent] = useState<string>('')
   const [fontSize, setFontSize] = useState(18)
-  const [fontFamily, setFontFamily] = useState('Georgia, serif')
+  const [fontFamilyIndex, setFontFamilyIndex] = useState(0)
   const [readingDark, setReadingDark] = useState(false)
   const [loading, setLoading] = useState(true)
   const [epubPercent, setEpubPercent] = useState(0)
   const [epubError, setEpubError] = useState('')
-  const [completed, setCompleted] = useState(false)
-  const [completionSaving, setCompletionSaving] = useState(false)
+  const [toc, setToc] = useState<{ label: string; href: string }[]>([])
+  const [tocOpen, setTocOpen] = useState(false)
   const epubContainer = useRef<HTMLDivElement>(null)
-  // Holds the live epub.js "rendition" so the Previous/Next buttons below
-  // can tell it to turn pages.
+  // Holds the live epub.js "rendition" so page-turn buttons, the TOC
+  // sidebar, and the font controls can all talk to the same book view.
   const renditionRef = useRef<any>(null)
 
   useEffect(() => {
     if (!bookId) return
-    setChapterSelectionReady(false)
     getBookById(bookId)
       .then(async (b) => {
         setBook(b)
         if (b.reading_file_path) return
-        const loadedChapters = await getChapters(bookId)
-        setChapters(loadedChapters)
-        if (profile && loadedChapters.length) {
-          const { data: savedProgress } = await supabase
-            .from('reading_progress')
-            .select('current_chapter_id')
-            .eq('book_id', bookId)
-            .eq('member_id', profile.id)
-            .maybeSingle()
-          const savedIndex = loadedChapters.findIndex((item) => item.id === savedProgress?.current_chapter_id)
-          if (savedIndex >= 0) setChapterIndex(savedIndex)
-        }
-        setChapterSelectionReady(true)
+        setChapters(await getChapters(bookId))
       })
       .catch(() => push('Could not load this book.', 'error'))
       .finally(() => setLoading(false))
-  }, [bookId, profile])
-
-  useEffect(() => {
-    const rendition = renditionRef.current
-    if (!rendition) return
-    rendition.themes.fontSize(`${fontSize}px`)
-    rendition.themes.fontFamily(fontFamily)
-  }, [fontSize, fontFamily])
+  }, [bookId])
 
   useEffect(() => {
     if (!book?.reading_file_path || !profile || !epubContainer.current) return
-    const memberId = profile.id
     let epubBook: any
     let rendition: any
     let cancelled = false
@@ -76,16 +59,20 @@ export default function Reader() {
 
         // openAs: 'epub' stops epub.js from guessing the file type from the
         // URL. Without it, the ?token=... on our signed URL confuses the
-        // guesser into thinking this is an unpacked folder of files, which
-        // makes it try (and fail) to fetch container.xml separately.
+        // guesser into thinking this is an unpacked folder of files.
         epubBook = ePub(url, { openAs: 'epub' })
         await epubBook.ready
         if (cancelled || !epubContainer.current) return
 
-        // The location scan below is what makes "percent complete" accurate,
-        // but it reads through the whole book and is slow on a full novel.
-        // Cache the result per book+browser so it only runs once, not on
-        // every visit.
+        // Table of contents, for the left-hand chapter panel.
+        const nav = await epubBook.loaded.navigation
+        if (!cancelled) {
+          setToc((nav?.toc ?? []).map((item: any) => ({ label: item.label?.trim() || 'Untitled', href: item.href })))
+        }
+
+        // The location scan below makes "percent complete" accurate, but it
+        // reads through the whole book and is slow on a full novel. Cache
+        // the result per book+browser so it only runs once, not every visit.
         const cacheKey = `epub-locations-${book.id}`
         const cachedLocations = localStorage.getItem(cacheKey)
         if (cachedLocations) {
@@ -103,31 +90,32 @@ export default function Reader() {
 
         rendition = epubBook.renderTo(epubContainer.current, { width: '100%', height: '70vh' })
         renditionRef.current = rendition
+
+        // Apply whatever font size/family the reader currently has selected.
         rendition.themes.fontSize(`${fontSize}px`)
-        rendition.themes.fontFamily(fontFamily)
+        rendition.themes.font(FONT_FAMILIES[fontFamilyIndex].value)
 
         rendition.on('relocated', (location: any) => {
           const cfi = location?.start?.cfi
           if (!cfi) return
           const percent = Math.min(100, Math.max(0, Math.round(epubBook.locations.percentageFromCfi(cfi) * 100)))
           setEpubPercent(percent)
-          updateReadingProgress(memberId, book.id, percent).catch(() => {})
+          updateReadingProgress(profile.id, book.id, percent).catch(() => {})
         })
 
         const savedProgress = await supabase
           .from('reading_progress')
-          .select('percent_complete, status')
+          .select('percent_complete')
           .eq('book_id', book.id)
-          .eq('member_id', memberId)
+          .eq('member_id', profile.id)
           .maybeSingle()
         const savedPercent = Number(savedProgress.data?.percent_complete ?? 0)
-        if (!cancelled) setCompleted(savedProgress.data?.status === 'completed')
         await rendition.display(
           savedPercent > 0 ? epubBook.locations.cfiFromPercentage(savedPercent / 100) : undefined
         )
         if (!cancelled) setEpubPercent(savedPercent)
-      } catch (error) {
-        if (!cancelled) setEpubError(error instanceof Error ? error.message : 'Could not open this EPUB book.')
+      } catch {
+        if (!cancelled) setEpubError('Could not open this EPUB book.')
       }
     }
 
@@ -140,22 +128,18 @@ export default function Reader() {
     }
   }, [book, profile])
 
-  async function markCompleted() {
-    if (!bookId || completionSaving || completed) return
-    setCompletionSaving(true)
-    try {
-      await recordBookCompletion(bookId)
-      setCompleted(true)
-      push('Book marked as completed.', 'success')
-    } catch {
-      push('You need at least 85% progress before completing this book.', 'info')
-    } finally {
-      setCompletionSaving(false)
-    }
-  }
+  // Keep the live EPUB view in sync whenever font size or family changes.
+  useEffect(() => {
+    if (!renditionRef.current) return
+    renditionRef.current.themes.fontSize(`${fontSize}px`)
+  }, [fontSize])
 
   useEffect(() => {
-    if (!chapterSelectionReady) return
+    if (!renditionRef.current) return
+    renditionRef.current.themes.font(FONT_FAMILIES[fontFamilyIndex].value)
+  }, [fontFamilyIndex])
+
+  useEffect(() => {
     const chapter = chapters[chapterIndex]
     if (!chapter) return
     setContent('Loading chapter…')
@@ -175,56 +159,109 @@ export default function Reader() {
       const percent = Math.round(((chapterIndex + 1) / chapters.length) * 100)
       upsertReadingProgress(profile.id, bookId, chapter.id, percent).catch(() => {})
     }
-  }, [chapterIndex, chapters, chapterSelectionReady])
+  }, [chapterIndex, chapters])
 
   if (loading) return <div className="p-10 text-center opacity-60">Loading…</div>
   if (!book) return <div className="p-10 text-center opacity-60">Book not found.</div>
 
+  const fontControls = (
+    <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+      <button
+        onClick={() => setTocOpen((o) => !o)}
+        aria-label="Table of contents"
+        className={tocOpen ? 'text-gold' : ''}
+      >
+        <List size={18} />
+      </button>
+      <button onClick={() => setFontSize((f) => Math.max(14, f - 2))} aria-label="Smaller text">
+        <Type size={14} />
+      </button>
+      <button onClick={() => setFontSize((f) => Math.min(28, f + 2))} aria-label="Larger text">
+        <Type size={20} />
+      </button>
+      <button
+        onClick={() => setFontFamilyIndex((i) => (i + 1) % FONT_FAMILIES.length)}
+        aria-label="Change font style"
+        title={`Font: ${FONT_FAMILIES[fontFamilyIndex].label} (tap to switch)`}
+      >
+        <CaseSensitive size={20} />
+      </button>
+      <button onClick={() => setReadingDark((d) => !d)} aria-label="Toggle reading mode">
+        {readingDark ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
+    </div>
+  )
+
   if (book.reading_file_path) {
     return (
-      <div className={readingDark ? 'dark min-h-[100dvh]' : 'min-h-[100dvh]'}>
-        <div className="bg-paper dark:bg-paper-dark min-h-[100dvh]">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-            <Link to="/library" className="mb-5 inline-flex items-center gap-2 text-sm opacity-70"><ArrowLeft size={16} /> Back to Library</Link>
-            <div className="flex flex-col items-start gap-3 text-sm opacity-70 mb-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
-                <p>{epubPercent}% complete</p>
-              </div>
-              <div className="flex shrink-0 self-end flex-wrap items-center justify-end gap-2 sm:self-auto">
-                <label className="sr-only" htmlFor="reader-font">Font</label>
-                <select id="reader-font" value={fontFamily} onChange={(event) => setFontFamily(event.target.value)} className="border border-ink/20 bg-transparent px-2 py-1 text-sm dark:border-ink-dark/20">
-                  <option value="Georgia, serif">Georgia</option>
-                  <option value="Arial, sans-serif">Arial</option>
-                  <option value="Verdana, sans-serif">Verdana</option>
-                  <option value="'Times New Roman', serif">Times New Roman</option>
-                </select>
-                <label className="sr-only" htmlFor="reader-font-size">Font size</label>
-                <select id="reader-font-size" value={fontSize} onChange={(event) => setFontSize(Number(event.target.value))} className="border border-ink/20 bg-transparent px-2 py-1 text-sm dark:border-ink-dark/20">
-                  {[14, 16, 18, 20, 22, 24, 26, 28].map((size) => <option key={size} value={size}>{size}px</option>)}
-                </select>
-                <button onClick={() => setReadingDark((d) => !d)} aria-label="Toggle reading mode">
-                  {readingDark ? <Sun size={18} /> : <Moon size={18} />}
-                </button>
-              </div>
-            </div>
-
-            {epubError ? (
-              <p className="text-center text-clay">{epubError}</p>
-            ) : (
-              <>
-                <div ref={epubContainer} style={{ fontSize }} className="min-h-[70vh] overflow-hidden" />
-                {epubPercent >= 85 && <div className="mt-5 flex flex-wrap items-center gap-3"><button type="button" onClick={markCompleted} disabled={completed || completionSaving} className="btn-primary disabled:opacity-60">{completed ? 'Completed' : completionSaving ? 'Saving...' : 'Mark as completed'}</button>{!completed && <span className="text-sm opacity-70">You have reached the 85% completion threshold.</span>}</div>}
-                <div className="flex items-center justify-between mt-6">
-                  <button onClick={() => renditionRef.current?.prev()} className="btn-secondary">
-                    <ChevronLeft size={16} /> Previous
-                  </button>
-                  <button onClick={() => renditionRef.current?.next()} className="btn-secondary">
-                    Next <ChevronRight size={16} />
-                  </button>
-                </div>
-              </>
+      <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
+        <div className="bg-paper dark:bg-paper-dark min-h-screen">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex gap-6">
+            {/* Chapter sidebar */}
+            {tocOpen && (
+              <aside className="hidden md:block w-56 shrink-0 border-r border-ink/10 dark:border-ink-dark/10 pr-4 max-h-[80vh] overflow-y-auto">
+                <p className="text-xs uppercase tracking-wide opacity-60 mb-2">Chapters</p>
+                <nav className="flex flex-col gap-1">
+                  {toc.length === 0 && <p className="text-xs opacity-50">No chapter list found.</p>}
+                  {toc.map((item, i) => (
+                    <button
+                      key={i}
+                      onClick={() => renditionRef.current?.display(item.href)}
+                      className="text-left text-sm px-2 py-1.5 rounded-sm hover:bg-ink/5 dark:hover:bg-white/5"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </nav>
+              </aside>
             )}
+
+            {/* Mobile chapter drawer */}
+            {tocOpen && (
+              <div className="md:hidden fixed inset-0 z-50 bg-paper dark:bg-paper-dark p-4 overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="font-display text-lg">Chapters</p>
+                  <button onClick={() => setTocOpen(false)} aria-label="Close chapter list"><X size={20} /></button>
+                </div>
+                <nav className="flex flex-col gap-1">
+                  {toc.map((item, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { renditionRef.current?.display(item.href); setTocOpen(false) }}
+                      className="text-left text-sm px-2 py-2 rounded-sm hover:bg-ink/5 dark:hover:bg-white/5"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            )}
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-4 text-sm opacity-70 mb-6">
+                <div>
+                  <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
+                  <p>{epubPercent}% complete</p>
+                </div>
+                {fontControls}
+              </div>
+
+              {epubError ? (
+                <p className="text-center text-clay">{epubError}</p>
+              ) : (
+                <>
+                  <div ref={epubContainer} className="min-h-[70vh] overflow-hidden" />
+                  <div className="flex items-center justify-between mt-6">
+                    <button onClick={() => renditionRef.current?.prev()} className="btn-secondary">
+                      <ChevronLeft size={16} /> Previous
+                    </button>
+                    <button onClick={() => renditionRef.current?.next()} className="btn-secondary">
+                      Next <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -235,65 +272,83 @@ export default function Reader() {
   const percent = chapters.length ? Math.round(((chapterIndex + 1) / chapters.length) * 100) : 0
 
   return (
-    <div className={readingDark ? 'dark min-h-[100dvh]' : 'min-h-[100dvh]'}>
-      <div className="bg-paper dark:bg-paper-dark min-h-[100dvh]">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[15rem_minmax(0,68ch)]">
-          <aside className="border-b border-ink/10 pb-5 dark:border-ink-dark/10 lg:border-b-0 lg:border-r lg:pr-5">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium"><List size={16} /> Chapters</div>
-            <nav className="max-h-60 space-y-1 overflow-y-auto lg:sticky lg:top-6 lg:max-h-[calc(100dvh-8rem)]">
-              {chapters.map((item, index) => <button key={item.id} type="button" onClick={() => setChapterIndex(index)} className={`w-full rounded-sm px-3 py-2 text-left text-sm transition-colors ${index === chapterIndex ? 'bg-ink text-paper dark:bg-gold dark:text-paper-dark' : 'hover:bg-ink/5 dark:hover:bg-white/5'}`}>
-                <span className="mr-2 opacity-60">{item.chapter_number}.</span>{item.title}
-              </button>)}
-            </nav>
-          </aside>
-          <main className="min-w-0">
-          <Link to="/library" className="mb-5 inline-flex items-center gap-2 text-sm opacity-70"><ArrowLeft size={16} /> Back to Library</Link>
-          <div className="flex flex-col items-start gap-3 text-sm opacity-70 mb-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
-              <p>{chapter ? chapter.title : 'No chapters yet'} · {percent}% complete</p>
+    <div className={readingDark ? 'dark min-h-screen' : 'min-h-screen'}>
+      <div className="bg-paper dark:bg-paper-dark min-h-screen">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex gap-6">
+          {tocOpen && (
+            <aside className="hidden md:block w-56 shrink-0 border-r border-ink/10 dark:border-ink-dark/10 pr-4 max-h-[80vh] overflow-y-auto">
+              <p className="text-xs uppercase tracking-wide opacity-60 mb-2">Chapters</p>
+              <nav className="flex flex-col gap-1">
+                {chapters.map((c, i) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setChapterIndex(i)}
+                    className={`text-left text-sm px-2 py-1.5 rounded-sm hover:bg-ink/5 dark:hover:bg-white/5 ${
+                      i === chapterIndex ? 'bg-ink/10 dark:bg-white/10 font-medium' : ''
+                    }`}
+                  >
+                    {c.title}
+                  </button>
+                ))}
+              </nav>
+            </aside>
+          )}
+
+          {tocOpen && (
+            <div className="md:hidden fixed inset-0 z-50 bg-paper dark:bg-paper-dark p-4 overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <p className="font-display text-lg">Chapters</p>
+                <button onClick={() => setTocOpen(false)} aria-label="Close chapter list"><X size={20} /></button>
+              </div>
+              <nav className="flex flex-col gap-1">
+                {chapters.map((c, i) => (
+                  <button
+                    key={c.id}
+                    onClick={() => { setChapterIndex(i); setTocOpen(false) }}
+                    className={`text-left text-sm px-2 py-2 rounded-sm hover:bg-ink/5 dark:hover:bg-white/5 ${
+                      i === chapterIndex ? 'bg-ink/10 dark:bg-white/10 font-medium' : ''
+                    }`}
+                  >
+                    {c.title}
+                  </button>
+                ))}
+              </nav>
             </div>
-            <div className="flex shrink-0 self-end flex-wrap items-center justify-end gap-2 sm:self-auto sm:gap-3">
-              <label className="sr-only" htmlFor="chapter-font">Font</label>
-              <select id="chapter-font" value={fontFamily} onChange={(event) => setFontFamily(event.target.value)} className="border border-ink/20 bg-transparent px-2 py-1 text-sm dark:border-ink-dark/20">
-                <option value="Georgia, serif">Georgia</option>
-                <option value="Arial, sans-serif">Arial</option>
-                <option value="Verdana, sans-serif">Verdana</option>
-                <option value="'Times New Roman', serif">Times New Roman</option>
-              </select>
-              <label className="sr-only" htmlFor="chapter-font-size">Font size</label>
-              <select id="chapter-font-size" value={fontSize} onChange={(event) => setFontSize(Number(event.target.value))} className="border border-ink/20 bg-transparent px-2 py-1 text-sm dark:border-ink-dark/20">
-                {[14, 16, 18, 20, 22, 24, 26, 28].map((size) => <option key={size} value={size}>{size}px</option>)}
-              </select>
-              <button onClick={() => setReadingDark((d) => !d)} aria-label="Toggle reading mode">
-                {readingDark ? <Sun size={18} /> : <Moon size={18} />}
+          )}
+
+          <div className="flex-1 min-w-0 max-w-prose mx-auto">
+            <div className="flex items-center justify-between text-sm opacity-70 mb-6">
+              <div>
+                <p className="font-display text-lg text-ink dark:text-ink-dark">{book.title}</p>
+                <p>{chapter ? chapter.title : 'No chapters yet'} · {percent}% complete</p>
+              </div>
+              {fontControls}
+            </div>
+
+            <div
+              style={{ fontSize, fontFamily: FONT_FAMILIES[fontFamilyIndex].value }}
+              className="leading-relaxed whitespace-pre-wrap"
+            >
+              {content}
+            </div>
+
+            <div className="flex items-center justify-between mt-10">
+              <button
+                onClick={() => setChapterIndex((i) => Math.max(0, i - 1))}
+                disabled={chapterIndex === 0}
+                className="btn-secondary disabled:opacity-30"
+              >
+                <ChevronLeft size={16} /> Previous
+              </button>
+              <button
+                onClick={() => setChapterIndex((i) => Math.min(chapters.length - 1, i + 1))}
+                disabled={chapterIndex >= chapters.length - 1}
+                className="btn-secondary disabled:opacity-30"
+              >
+                Next <ChevronRight size={16} />
               </button>
             </div>
           </div>
-
-          <div style={{ fontSize, fontFamily }} className="leading-relaxed whitespace-pre-wrap">
-            {content}
-          </div>
-
-          {percent >= 85 && <div className="mt-5 flex flex-wrap items-center gap-3"><button type="button" onClick={markCompleted} disabled={completed || completionSaving} className="btn-primary disabled:opacity-60">{completed ? 'Completed' : completionSaving ? 'Saving...' : 'Mark as completed'}</button>{!completed && <span className="text-sm opacity-70">You have reached the 85% completion threshold.</span>}</div>}
-
-          <div className="flex items-center justify-between mt-10">
-            <button
-              onClick={() => setChapterIndex((i) => Math.max(0, i - 1))}
-              disabled={chapterIndex === 0}
-              className="btn-secondary disabled:opacity-30"
-            >
-              <ChevronLeft size={16} /> Previous
-            </button>
-            <button
-              onClick={() => setChapterIndex((i) => Math.min(chapters.length - 1, i + 1))}
-              disabled={chapterIndex >= chapters.length - 1}
-              className="btn-secondary disabled:opacity-30"
-            >
-              Next <ChevronRight size={16} />
-            </button>
-          </div>
-          </main>
         </div>
       </div>
     </div>

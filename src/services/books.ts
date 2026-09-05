@@ -117,16 +117,5 @@ export async function getReaderAnnotations(memberId: string, bookId: string) {
   ])
   if (bookmarks.error) throw bookmarks.error
   if (highlights.error) throw highlights.error
-  const { data: bookmarkMetadata, error: metadataError } = await supabase
-    .from('bookmarks')
-    .select('id, chapter_label, page_number')
-    .eq('member_id', memberId)
-    .eq('book_id', bookId)
-  return {
-    bookmarks: (bookmarks.data ?? []).map((bookmark) => ({
-      ...bookmark,
-      ...(metadataError ? {} : (bookmarkMetadata ?? []).find((item) => item.id === bookmark.id) ?? {})
-    })),
-    highlights: highlights.data ?? []
-  }
+  return { bookmarks: bookmarks.data ?? [], highlights: highlights.data ?? [] }
 }

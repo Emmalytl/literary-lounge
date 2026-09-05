@@ -86,8 +86,6 @@ export default function Reader() {
   const [bookmarks, setBookmarks] = useState<any[]>([])
   const [highlights, setHighlights] = useState<any[]>([])
   const [currentLocation, setCurrentLocation] = useState('')
-  const [currentChapterLabel, setCurrentChapterLabel] = useState('')
-  const [currentPageNumber, setCurrentPageNumber] = useState<number | null>(null)
   const [selectedRange, setSelectedRange] = useState('')
   const [selectedText, setSelectedText] = useState('')
   const [highlightColor, setHighlightColor] = useState(HIGHLIGHT_COLORS[0].value)
@@ -185,18 +183,13 @@ export default function Reader() {
           const cfi = location?.start?.cfi
           if (!cfi) return
           setCurrentLocation(cfi)
-          setCurrentPageNumber(Number(location?.start?.displayed?.page) || null)
           const percent = Math.min(100, Math.max(0, Math.round(epubBook.locations.percentageFromCfi(cfi) * 100)))
           setEpubPercent(percent)
           updateReadingProgress(profile.id, book.id, percent).catch(() => {})
           // Highlight the current chapter/part in the sidebar as the reader
           // scrolls or turns pages, so it's clear where they are.
           const href = location?.start?.href
-          if (href) {
-            setActiveHref(href)
-            const chapterItem = toc.find((item) => item.href === href)
-            if (chapterItem) setCurrentChapterLabel(chapterItem.label)
-          }
+          if (href) setActiveHref(href)
         })
 
         rendition.on('selected', (cfiRange: string, contents: any) => {
@@ -271,15 +264,18 @@ export default function Reader() {
       push('This page is already bookmarked.', 'info')
       return
     }
+    const label = window.prompt('Name this bookmark', '')?.trim()
+    if (!label) {
+      push('Enter a name to save the bookmark.', 'info')
+      return
+    }
     setSavingAnnotation(true)
     const { data, error } = await supabase.from('bookmarks').insert({
       member_id: profile.id,
       book_id: bookId,
       location: currentLocation,
-      label: activeHref ? activeHref.split('/').pop() : 'Saved page',
-      chapter_label: currentChapterLabel || null,
-      page_number: currentPageNumber
-    }).select('id, location, label, chapter_id, chapter_label, page_number').single()
+      label
+    }).select('id, location, label, chapter_id').single()
     setSavingAnnotation(false)
     if (error) { push('Could not save this bookmark. Apply migration 0015 first.', 'error'); return }
     setBookmarks((current) => [...current, data])
@@ -443,7 +439,7 @@ export default function Reader() {
   const annotationLists = <>
     {bookmarks.length > 0 && <div className="mt-6 border-t border-ink/10 pt-4 dark:border-ink-dark/10">
       <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-60"><Bookmark size={14} /> Bookmarks</p>
-      <div className="flex flex-col gap-1">{bookmarks.map((bookmark) => <div key={bookmark.id} className="flex items-center gap-1"><button type="button" onClick={() => openBookmark(bookmark.location)} className="min-w-0 flex-1 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-ink/5 dark:hover:bg-white/5"><span className="block">{bookmark.label || 'Saved page'}</span><span className="block text-xs opacity-60">{bookmark.chapter_label || 'Chapter'}{bookmark.page_number ? ` · Page ${bookmark.page_number}` : ''}</span></button>{annotationActions('bookmark', bookmark)}</div>)}</div>
+      <div className="flex flex-col gap-1">{bookmarks.map((bookmark) => <div key={bookmark.id} className="flex items-center gap-1"><button type="button" onClick={() => openBookmark(bookmark.location)} className="min-w-0 flex-1 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-ink/5 dark:hover:bg-white/5">{bookmark.label || 'Saved page'}</button>{annotationActions('bookmark', bookmark)}</div>)}</div>
     </div>}
     {highlights.length > 0 && <div className="mt-6 border-t border-ink/10 pt-4 dark:border-ink-dark/10">
       <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide opacity-60"><Highlighter size={14} /> Highlights</p>

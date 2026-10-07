@@ -2,6 +2,7 @@ import { Link, Outlet } from 'react-router-dom'
 import { Moon, Sun } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useTheme } from '@/hooks/useTheme'
+import { PwaInstallPrompt } from '@/components/PwaInstallPrompt'
 
 export function PublicLayout() {
   const { user } = useAuth()
@@ -44,6 +45,7 @@ export function PublicLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
+      <PwaInstallPrompt />
       <footer className="border-t border-ink/10 dark:border-ink-dark/10 mt-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 md:py-5 flex flex-wrap items-center gap-x-5 gap-y-2 md:grid md:grid-cols-5 md:gap-6 text-sm">
           <div className="flex basis-full items-baseline gap-2 md:col-span-2 md:block md:basis-auto">

@@ -62,3 +62,26 @@
 @media (display-mode: standalone) {
   body { overscroll-behavior-y: none; }
 }
+
+@layer components {
+  .pwa-install-card {
+    @apply fixed z-50 flex items-start gap-3 border border-ink/10 bg-paper/95 p-4 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-paper-dark/95;
+    left: max(1rem, env(safe-area-inset-left));
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: calc(5.25rem + env(safe-area-inset-bottom));
+    border-radius: 1rem;
+  }
+  .pwa-install-icon { @apply h-12 w-12 shrink-0 rounded-xl shadow-sm; }
+  .pwa-install-close { @apply absolute right-2 top-2 rounded-full p-2 opacity-60 hover:bg-ink/5 dark:hover:bg-white/5; }
+  .photo-card { @apply relative overflow-hidden bg-ink text-paper shadow-xl; border-radius: 1rem; }
+  .mobile-app-panel { @apply border border-ink/10 bg-white/70 shadow-[0_16px_50px_rgba(27,42,74,0.08)] backdrop-blur-sm dark:border-white/10 dark:bg-white/5; border-radius: 1rem; }
+}
+
+@media (min-width: 768px) {
+  .pwa-install-card { left: auto; right: 1.5rem; bottom: 1.5rem; width: 24rem; }
+}
+
+@media (display-mode: standalone) and (max-width: 767px) {
+  header { padding-top: env(safe-area-inset-top); }
+  main { min-height: calc(100dvh - env(safe-area-inset-top)); }
+}

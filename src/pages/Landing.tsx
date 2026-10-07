@@ -6,22 +6,22 @@ const loungeLogo = '/WhatsApp%20Image%202026-09-02%20at%2016.47.35.jpeg'
 
 const communitySlides = [
   {
-    image: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1600&q=85',
-    alt: 'Friends gathered together in a warm café setting',
-    eyebrow: 'Read together',
-    title: 'A table with room for every perspective'
+    image: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1600&q=88',
+    alt: 'Tall shelves filled with books in a beautiful library',
+    eyebrow: 'Your digital library',
+    title: 'Step into a room made for readers'
   },
   {
-    image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=1600&q=85',
-    alt: 'A group of friends sharing a relaxed conversation',
-    eyebrow: 'Talk it through',
-    title: 'The best chapters continue after the page'
+    image: 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&w=1600&q=88',
+    alt: 'Rows of books on warm wooden bookshelves',
+    eyebrow: 'Discover your next read',
+    title: 'Books worth opening. Stories worth sharing.'
   },
   {
-    image: 'https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1600&q=85',
-    alt: 'People collaborating together around a table',
-    eyebrow: 'Make connections',
-    title: 'A reading club that feels like belonging'
+    image: 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=1600&q=88',
+    alt: 'Open book on a reading table',
+    eyebrow: 'Read. Discuss. Connect.',
+    title: 'Carry the Lounge with you, wherever you read'
   }
 ]
 
@@ -40,9 +40,9 @@ export default function Landing() {
   return (
     <div>
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 md:pt-20 pb-12 md:pb-16 text-center">
-        <img src={loungeLogo} alt="The Literary Lounge logo" className="lounge-logo mx-auto mb-8" />
-        <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 md:pt-20 pb-10 md:pb-16 text-center">
+        <img src={loungeLogo} alt="The Literary Lounge logo" className="lounge-logo mx-auto mb-6 md:mb-8" />
+        <h1 className="font-display text-[2.55rem] sm:text-5xl md:text-6xl font-semibold leading-[1.05]">
           The Literary Lounge
         </h1>
         <p className="mt-3 text-lg md:text-xl text-gold font-medium">Read. Discuss. Connect.</p>
@@ -51,10 +51,10 @@ export default function Landing() {
           humans behind the reading lists. Join a community that reads together, talks it
           through on WhatsApp, and eventually meets in person.
         </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-4">
-          <Link to="/register" className="btn-primary">Join the Lounge</Link>
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:justify-center sm:gap-4">
+          <Link to="/register" className="btn-primary col-span-2 sm:col-auto">Join the Lounge</Link>
           <Link to="/library" className="btn-secondary">Explore Library</Link>
-          <Link to="/events" className="btn-secondary">Upcoming Events</Link>
+          <Link to="/events" className="btn-secondary">Events</Link>
         </div>
       </section>
 

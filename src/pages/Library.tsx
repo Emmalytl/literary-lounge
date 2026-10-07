@@ -18,9 +18,16 @@ export default function Library() {
   )
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-      <h1 className="font-display text-3xl mb-2">Library</h1>
-      <p className="opacity-70 mb-6">Browse what the Lounge is reading.</p>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10">
+      <section className="photo-card mb-8 min-h-56 sm:min-h-64">
+        <img src="https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1600&q=88" alt="Bookshelves in a beautiful library" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-ink/95 via-ink/70 to-ink/20" />
+        <div className="relative flex min-h-56 max-w-xl flex-col justify-end p-6 sm:min-h-64 sm:p-8">
+          <p className="eyebrow text-gold">The Literary Lounge Library</p>
+          <h1 className="mt-2 font-display text-4xl leading-tight sm:text-5xl">Find a book. Make yourself at home.</h1>
+          <p className="mt-3 text-sm text-paper/80 sm:text-base">Browse the Lounge collection, open the current read and keep your literary journey moving.</p>
+        </div>
+      </section>
 
       <div className="relative max-w-sm mb-8">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />

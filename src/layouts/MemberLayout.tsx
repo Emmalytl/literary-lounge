@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { Home, Library, CalendarDays, User, LogOut, Moon, Sun, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthContext'
 import { useTheme } from '@/hooks/useTheme'
+import { PwaInstallPrompt } from '@/components/PwaInstallPrompt'
 
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: Home },
@@ -65,6 +66,8 @@ export function MemberLayout() {
       <main className="min-w-0 flex-1 pb-20 md:pb-0">
         <Outlet />
       </main>
+
+      <PwaInstallPrompt />
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-paper/95 dark:bg-paper-dark/95 backdrop-blur-md border-t border-ink/10 dark:border-ink-dark/10 flex justify-around px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] z-40">
